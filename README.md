@@ -1,6 +1,6 @@
 # File Server
 
-A simple file server implemented in Go that allows users to upload, download, and list files. The server supports authentication using username and password, rate limiting, and secure storage of user credentials.
+A simple file server implemented in Go that allows users to upload, download, and list files. The server supports authentication, rate limiting, secure storage of user credentials, and the ability to run as a daemon.
 
 ## Features
 
@@ -11,12 +11,16 @@ A simple file server implemented in Go that allows users to upload, download, an
 - User credentials stored securely as Argon2 hashes
 - Rate limiting to prevent excessive requests
 - Logging of file operations with username
+- Ability to run as a daemon in the background
+- Configuration options for rate limiting and daemon settings
 - Automatic creation of "files" folder if it doesn't exist
+- Command-line options for adding users and running in daemon mode
 
 ## Prerequisites
 
 - Go 1.16 or later
 - `golang.org/x/crypto/argon2` package
+- `github.com/sevlyar/go-daemon` package
 
 ## Installation
 
@@ -33,12 +37,37 @@ A simple file server implemented in Go that allows users to upload, download, an
 3. Install the required dependencies:
    ```
    go get golang.org/x/crypto/argon2
+   go get github.com/sevlyar/go-daemon
    ```
 
 4. Build the project:
    ```
    go build
    ```
+
+## Configuration
+
+The server can be configured using a JSON configuration file named `config.json`. The configuration file should be placed in the same directory as the server binary. Here's an example configuration:
+
+```json
+{
+  "rateLimit": {
+    "requestsPerSecond": 1,
+    "burst": 5
+  },
+  "daemon": {
+    "pidFile": "fileserver.pid",
+    "logFile": "fileserver.log"
+  }
+}
+```
+
+- `rateLimit`: Settings for rate limiting.
+  - `requestsPerSecond`: The maximum number of requests allowed per second.
+  - `burst`: The maximum number of requests allowed to exceed the rate limit in a single burst.
+- `daemon`: Settings for running the server as a daemon.
+  - `pidFile`: The path to the file where the daemon's process ID will be stored.
+  - `logFile`: The path to the file where the daemon's logs will be written.
 
 ## Usage
 
@@ -62,9 +91,24 @@ A simple file server implemented in Go that allows users to upload, download, an
    ./fileserver
    ```
 
-3. The server will start running on `http://localhost:8080`.
+3. To add a new user, use the `-u` flag followed by the username. You can optionally provide the password using the `-p` flag. If the password is not provided, you will be prompted to enter it.
+   ```
+   ./fileserver -u newuser -p password
+   ```
+   or
+   ```
+   ./fileserver -u newuser
+   Password: ********
+   ```
 
-4. Use the following endpoints to interact with the file server:
+4. To run the server as a daemon, use the `-d` flag:
+   ```
+   ./fileserver -d
+   ```
+
+5. The server will start running on `http://localhost:8080`.
+
+6. Use the following endpoints to interact with the file server:
    - Upload a file:
      ```
      curl -u username:password -X PUT -F "file=@/path/to/file" http://localhost:8080/upload
@@ -80,11 +124,15 @@ A simple file server implemented in Go that allows users to upload, download, an
 
    Replace `username` and `password` with the appropriate credentials, `/path/to/file` with the path to the file you want to upload, and `filename` with the name of the file you want to download.
 
-## Configuration
+## Running Tests
 
-- Rate Limiting:
-  - The server is configured to allow 1 request per second with a burst of 5 requests.
-  - Modify the `limiter` variable in the code to change the rate limiting settings.
+The project includes a set of test cases to verify the functionality of the file server. To run the tests, use the following command:
+
+```
+go test
+```
+
+The tests cover various scenarios, including file upload, download, listing, and authentication.
 
 ## Contributing
 
@@ -92,4 +140,4 @@ Contributions are welcome! If you find any issues or have suggestions for improv
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE)
+This project is licensed under the [MIT License](LICENSE).
