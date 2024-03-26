@@ -121,6 +121,16 @@ func TestHandleDownload(t *testing.T) {
 }
 
 func TestHandleFileList(t *testing.T) {
+	// Clean up the "files" directory before running the test
+	err := os.RemoveAll("files")
+	if err != nil {
+		t.Fatalf("Failed to clean up files directory: %s", err)
+	}
+	err = os.MkdirAll("files", os.ModePerm)
+	if err != nil {
+		t.Fatalf("Failed to create files directory: %s", err)
+	}
+
 	// Create temporary files for testing
 	tempFiles := []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"}
 	for _, fileName := range tempFiles {

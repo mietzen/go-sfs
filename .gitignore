@@ -3,3 +3,4 @@ users
 files
 fileserver.pid
 fileserver.log
+go-simple-fileserver

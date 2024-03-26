@@ -161,7 +161,12 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := r.Context().Value("username").(string)
+	username, ok := r.Context().Value("username").(string)
+	if !ok {
+		log.Println("Failed to retrieve username from context")
+		username = "Unknown"
+	}
+
 	log.Printf("File uploaded: %s by user: %s\n", filename, username)
 	fmt.Fprintf(w, "File uploaded successfully")
 }
@@ -182,7 +187,12 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	username := r.Context().Value("username").(string)
+	username, ok := r.Context().Value("username").(string)
+	if !ok {
+		log.Println("Failed to retrieve username from context")
+		username = "Unknown"
+	}
+
 	log.Printf("File downloaded: %s by user: %s\n", filename, username)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -222,7 +232,12 @@ func handleFileList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	username := r.Context().Value("username").(string)
+	username, ok := r.Context().Value("username").(string)
+	if !ok {
+		log.Println("Failed to retrieve username from context")
+		username = "Unknown"
+	}
+
 	log.Printf("File list requested by user: %s\n", username)
 	json.NewEncoder(w).Encode(fileInfos)
 }
