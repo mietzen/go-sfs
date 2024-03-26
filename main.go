@@ -46,13 +46,21 @@ var limiter *rate.Limiter
 
 func main() {
 
+	// Parse command-line flags
 	usernameFlag := flag.String("u", "", "Username to add")
 	passwordFlag := flag.String("p", "", "Password for the user")
+	daemonFlag := flag.Bool("d", false, "Run in daemon mode")
 	flag.Parse()
 
 	// Check if the -u flag is provided
 	if *usernameFlag != "" {
 		addUser(*usernameFlag, *passwordFlag)
+		return
+	}
+
+	// Check if the -d flag is provided
+	if *daemonFlag {
+		daemonize()
 		return
 	}
 
@@ -396,4 +404,50 @@ func generatePasswordHash(password string) string {
 	hashedPassword := fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%x$%x", argon2.Version, 64*1024, 1, 4, salt, hash)
 
 	return hashedPassword
+}
+
+func daemonize() {
+	// Create a new context for the daemon
+	ctx := &daemon.Context{
+		PidFileName: "fileserver.pid",
+		PidFilePerm: 0644,
+		LogFileName: "fileserver.log",
+		LogFilePerm: 0640,
+		WorkDir:     "./",
+		Umask:       027,
+		Args:        []string{"fileserver"},
+	}
+
+	// Create a child process
+	child, err := ctx.Reborn()
+	if err != nil {
+		log.Fatalf("Failed to daemonize: %s\n", err)
+	}
+
+	if child != nil {
+		// Parent process
+		fmt.Println("File server is running in daemon mode.")
+		os.Exit(0)
+	} else {
+		// Daemon process
+		defer ctx.Release()
+
+		// Start the server
+		startServer()
+	}
+}
+
+func startServer() {
+	// Create the "files" folder if it doesn't exist
+	err := os.MkdirAll("files", os.ModePerm)
+	if err != nil {
+		log.Fatalf("Error creating files folder: %s\n", err)
+	}
+
+	http.HandleFunc("/upload", errorMiddleware(rateLimitMiddleware(authMiddleware(handleUpload))))
+	http.HandleFunc("/download/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDownload))))
+	http.HandleFunc("/files", errorMiddleware(rateLimitMiddleware(authMiddleware(handleFileList))))
+
+	log.Println("Server is running on http://localhost:8080")
+	http.ListenAndServe(":8080", nil)
 }
