@@ -41,17 +41,38 @@ type Config struct {
 		RequestsPerSecond int `json:"requestsPerSecond"`
 		Burst             int `json:"burst"`
 	} `json:"rateLimit"`
+	Daemon struct {
+		PidFile string `json:"pidFile"`
+		LogFile string `json:"logFile"`
+	} `json:"daemon"`
 }
 
-var limiter *rate.Limiter
+var (
+	limiter *rate.Limiter
+	config  Config
+)
 
 func main() {
-
 	// Parse command-line flags
 	usernameFlag := flag.String("u", "", "Username to add")
 	passwordFlag := flag.String("p", "", "Password for the user")
 	daemonFlag := flag.Bool("d", false, "Run in daemon mode")
 	flag.Parse()
+
+	// Read the configuration from config.json
+	configFile, err := os.Open("config.json")
+	if err != nil {
+		log.Fatalf("Error opening config file: %s\n", err)
+	}
+	defer configFile.Close()
+
+	err = json.NewDecoder(configFile).Decode(&config)
+	if err != nil {
+		log.Fatalf("Error parsing config file: %s\n", err)
+	}
+
+	// Create the rate limiter with the configured values
+	limiter = rate.NewLimiter(rate.Limit(config.RateLimit.RequestsPerSecond), config.RateLimit.Burst)
 
 	// Check if the -u flag is provided
 	if *usernameFlag != "" {
@@ -65,34 +86,8 @@ func main() {
 		return
 	}
 
-	// Read the configuration from config.json
-	configFile, err := os.Open("config.json")
-	if err != nil {
-		log.Fatalf("Error opening config file: %s\n", err)
-	}
-	defer configFile.Close()
-
-	var config Config
-	err = json.NewDecoder(configFile).Decode(&config)
-	if err != nil {
-		log.Fatalf("Error parsing config file: %s\n", err)
-	}
-
-	// Create the rate limiter with the configured values
-	limiter = rate.NewLimiter(rate.Limit(config.RateLimit.RequestsPerSecond), config.RateLimit.Burst)
-
-	// Create the "files" folder if it doesn't exist
-	err = os.MkdirAll("files", os.ModePerm)
-	if err != nil {
-		log.Fatalf("Error creating files folder: %s\n", err)
-	}
-
-	http.HandleFunc("/upload", errorMiddleware(rateLimitMiddleware(authMiddleware(handleUpload))))
-	http.HandleFunc("/download/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDownload))))
-	http.HandleFunc("/files", errorMiddleware(rateLimitMiddleware(authMiddleware(handleFileList))))
-
-	log.Println("Server is running on http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+	// Start the server
+	startServer()
 }
 
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -410,9 +405,9 @@ func generatePasswordHash(password string) string {
 func daemonize() {
 	// Create a new context for the daemon
 	ctx := &daemon.Context{
-		PidFileName: "fileserver.pid",
+		PidFileName: config.Daemon.PidFile,
 		PidFilePerm: 0644,
-		LogFileName: "fileserver.log",
+		LogFileName: config.Daemon.LogFile,
 		LogFilePerm: 0640,
 		WorkDir:     "./",
 		Umask:       027,
