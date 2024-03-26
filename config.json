@@ -1,0 +1,6 @@
+{
+    "rateLimit": {
+      "requestsPerSecond": 1,
+      "burst": 5
+    }
+  }

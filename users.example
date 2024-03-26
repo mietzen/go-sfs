@@ -1,0 +1,10 @@
+[
+    {
+    "username": "user1",
+    "password": "$argon2id$v=19$m=65536,t=1,p=4$c2FsdA$hash"
+    },
+    {
+    "username": "user2",
+    "password": "$argon2id$v=19$m=65536,t=1,p=4$c2FsdA$hash"
+    }
+]
