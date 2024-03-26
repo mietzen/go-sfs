@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sevlyar/go-daemon"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/term"
 	"golang.org/x/time/rate"
