@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -13,9 +15,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/crypto/argon2"
+	"golang.org/x/term"
 	"golang.org/x/time/rate"
 )
 
@@ -41,6 +45,17 @@ type Config struct {
 var limiter *rate.Limiter
 
 func main() {
+
+	usernameFlag := flag.String("u", "", "Username to add")
+	passwordFlag := flag.String("p", "", "Password for the user")
+	flag.Parse()
+
+	// Check if the -u flag is provided
+	if *usernameFlag != "" {
+		addUser(*usernameFlag, *passwordFlag)
+		return
+	}
+
 	// Read the configuration from config.json
 	configFile, err := os.Open("config.json")
 	if err != nil {
@@ -253,25 +268,132 @@ func authenticateUser(username, password string) bool {
 }
 
 func verifyPassword(password, hashedPassword string) bool {
-	// Extract the salt and key from the hashed password
+	// Extract the parameters and salt from the hashed password
 	parts := strings.Split(hashedPassword, "$")
-	if len(parts) != 4 {
+	if len(parts) != 6 {
 		return false
 	}
 
-	salt, err := hex.DecodeString(parts[2])
-	if err != nil {
-		return false
-	}
+	var params []string
+	fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &params)
 
-	key, err := hex.DecodeString(parts[3])
-	if err != nil {
-		return false
-	}
+	salt, _ := hex.DecodeString(parts[4])
+	key, _ := hex.DecodeString(parts[5])
 
-	// Compute the Argon2 hash of the provided password with the same parameters
+	// Compute the Argon2 hash of the provided password with the same parameters and salt
 	hash := argon2.IDKey([]byte(password), salt, 1, 64*1024, 4, 32)
 
 	// Compare the computed hash with the stored key
 	return subtle.ConstantTimeCompare(key, hash) == 1
+}
+
+func addUser(username, password string) {
+	// Read the existing users from the users file
+	users, err := readUsers()
+	if err != nil {
+		log.Fatalf("Error reading users file: %s\n", err)
+	}
+
+	// Check if the user already exists
+	for _, user := range users {
+		if user.Username == username {
+			fmt.Printf("User '%s' already exists. Do you want to overwrite the password? (y/n): ", username)
+			var confirm string
+			fmt.Scanln(&confirm)
+			if confirm != "y" {
+				fmt.Println("User not updated.")
+				return
+			}
+			break
+		}
+	}
+
+	// Prompt for password if not provided as a flag
+	if password == "" {
+		fmt.Print("Enter password: ")
+		passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			log.Fatalf("Error reading password: %s\n", err)
+		}
+		password = string(passwordBytes)
+		fmt.Println()
+	}
+
+	// Generate Argon2 hash of the password
+	hashedPassword := generatePasswordHash(password)
+
+	// Update or add the user
+	updated := false
+	for i, user := range users {
+		if user.Username == username {
+			users[i].Password = hashedPassword
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		users = append(users, User{Username: username, Password: hashedPassword})
+	}
+
+	// Write the updated users to the users file
+	err = writeUsers(users)
+	if err != nil {
+		log.Fatalf("Error writing users file: %s\n", err)
+	}
+
+	fmt.Printf("User '%s' %s successfully.\n", username, map[bool]string{true: "updated", false: "added"}[updated])
+}
+
+func readUsers() ([]User, error) {
+	// Read the users file
+	data, err := os.ReadFile("users")
+	if err != nil {
+		// If the file doesn't exist, return an empty slice
+		if os.IsNotExist(err) {
+			return []User{}, nil
+		}
+		return nil, err
+	}
+
+	// Parse the JSON data
+	var users []User
+	err = json.Unmarshal(data, &users)
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
+func writeUsers(users []User) error {
+	// Marshal the users to JSON
+	data, err := json.MarshalIndent(users, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	// Write the JSON data to the users file
+	err = os.WriteFile("users", data, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func generatePasswordHash(password string) string {
+	// Generate a random salt
+	salt := make([]byte, 16)
+	_, err := rand.Read(salt)
+	if err != nil {
+		log.Fatalf("Error generating salt: %s\n", err)
+	}
+
+	// Compute the Argon2 hash of the password
+	hash := argon2.IDKey([]byte(password), salt, 1, 64*1024, 4, 32)
+
+	// Encode the salt and hash as a string
+	hashedPassword := fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%x$%x", argon2.Version, 64*1024, 1, 4, salt, hash)
+
+	return hashedPassword
 }
