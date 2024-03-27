@@ -45,6 +45,7 @@ type Config struct {
 		PidFile string `json:"pidFile"`
 		LogFile string `json:"logFile"`
 	} `json:"daemon"`
+	UserFile string `json:"userFile"` // New field for user file path
 }
 
 var (
@@ -242,6 +243,32 @@ func handleFileList(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(fileInfos)
 }
 
+func handleDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract filename from URL
+	filename := filepath.Base(r.URL.Path)
+	filePath := filepath.Join("files", filename)
+
+	// Check if the file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	// Delete the file
+	if err := os.Remove(filePath); err != nil {
+		http.Error(w, "Failed to delete file", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("File deleted: %s\n", filename)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("File deleted successfully"))
+}
 
 func calculateSHA256(filePath string) string {
 	file, err := os.Open(filePath)
@@ -262,7 +289,7 @@ func calculateSHA256(filePath string) string {
 
 func authenticateUser(username, password string) bool {
 	// Read the users file
-	data, err := os.ReadFile("users")
+	data, err := os.ReadFile(config.UserFile)
 	if err != nil {
 		log.Printf("Error reading users file: %s\n", err)
 		return false
