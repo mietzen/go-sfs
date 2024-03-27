@@ -400,7 +400,7 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete the file
-	if err := os.Remove(filePath); err != nil {
+	if err := os.RemoveAll(filePath); err != nil {
 		http.Error(w, "Failed to delete file", http.StatusInternalServerError)
 		return
 	}
