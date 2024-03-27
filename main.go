@@ -225,15 +225,27 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL path to extract the directory structure
 	urlParts := strings.Split(r.URL.Path, "/")
 	// Remove the first element which is an empty string
-	urlParts = urlParts[1:]
+	urlParts = urlParts[2:]
 
 	// Construct the directory path from URL parts
 	uploadPath := filepath.Join(urlParts...)
+
+	isValid, err := isValidPath(uploadPath, config.Storage)
+	if err != nil {
+		log.Fatalf("Error validating path: %s\n", err)
+		return
+	}
+
+	if !isValid {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	// Append the file name to the directory path
 	filePath := filepath.Join(config.Storage, uploadPath)
 
 	// Create directories recursively if they don't exist
-	err := os.MkdirAll(filePath, os.ModePerm)
+	err = os.MkdirAll(filePath, os.ModePerm)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
