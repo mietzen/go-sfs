@@ -15,6 +15,8 @@ import (
 )
 
 func TestHandleUpload(t *testing.T) {
+
+	config.Storage = `files`
 	// Create a temporary file for testing
 	tempFile, err := ioutil.TempFile("", "test-file-")
 	if err != nil {
@@ -73,6 +75,7 @@ func TestHandleUpload(t *testing.T) {
 }
 
 func TestHandleDownload(t *testing.T) {
+	config.Storage = `files`
 	// Create a temporary file for testing
 	tempFile, err := ioutil.TempFile("files", "test-file-")
 	if err != nil {
@@ -122,6 +125,7 @@ func TestHandleDownload(t *testing.T) {
 }
 
 func TestHandleFileList(t *testing.T) {
+	config.Storage = `files`
 	// Clean up the "files" directory before running the test
 	err := os.RemoveAll("files")
 	if err != nil {

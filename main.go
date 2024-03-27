@@ -45,7 +45,8 @@ type Config struct {
 		PidFile string `json:"pidFile"`
 		LogFile string `json:"logFile"`
 	} `json:"daemon"`
-	UserFile string `json:"userFile"` // New field for user file path
+	UserFile string `json:"userFile"`
+	Storage  string `json:"storage"`
 }
 
 var (
@@ -150,7 +151,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	filename := header.Filename
-	dst, err := os.Create(filepath.Join("files", filename))
+	dst, err := os.Create(filepath.Join(config.Storage, filename))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -179,7 +180,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := filepath.Base(r.URL.Path)
-	filePath := filepath.Join("files", filename)
+	filePath := filepath.Join(config.Storage, filename)
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -206,7 +207,7 @@ func handleFileList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files, err := os.ReadDir("files")
+	files, err := os.ReadDir(config.Storage)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -215,7 +216,7 @@ func handleFileList(w http.ResponseWriter, r *http.Request) {
 	var fileInfos []FileInfo
 	for _, file := range files {
 		if !file.IsDir() {
-			filePath := filepath.Join("files", file.Name())
+			filePath := filepath.Join(config.Storage, file.Name())
 			fileInfo, err := os.Stat(filePath)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -251,7 +252,7 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 
 	// Extract filename from URL
 	filename := filepath.Base(r.URL.Path)
-	filePath := filepath.Join("files", filename)
+	filePath := filepath.Join(config.Storage, filename)
 
 	// Check if the file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -477,8 +478,8 @@ func daemonize() {
 }
 
 func startServer() {
-	// Create the "files" folder if it doesn't exist
-	err := os.MkdirAll("files", os.ModePerm)
+	// Create the config.Storage folder if it doesn't exist
+	err := os.MkdirAll(config.Storage, os.ModePerm)
 	if err != nil {
 		log.Fatalf("Error creating files folder: %s\n", err)
 	}
