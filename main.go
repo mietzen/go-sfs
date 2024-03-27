@@ -52,9 +52,10 @@ type Config struct {
 		PidFile string `json:"pidFile"`
 		LogFile string `json:"logFile"`
 	} `json:"daemon"`
-	Port     int    `json:"port"`
-	UserFile string `json:"userFile"`
-	Storage  string `json:"storage"`
+	Port       int    `json:"port"`
+	UserFile   string `json:"userFile"`
+	Storage    string `json:"storage"`
+	CertFolder string `json:"certFolder"`
 }
 
 var (
@@ -99,6 +100,9 @@ func main() {
 	if storage := os.Getenv("STORAGE"); storage != "" {
 		config.Storage = storage
 	}
+	if certFolder := os.Getenv("CERTS"); certFolder != "" {
+		config.CertFolder = certFolder
+	}
 	if requestsPerSecond := os.Getenv("LIMITER_REQUESTS_PER_SECOND"); requestsPerSecond != "" {
 		if rps, err := strconv.Atoi(requestsPerSecond); err == nil {
 			config.RateLimit.RequestsPerSecond = rps
@@ -109,7 +113,6 @@ func main() {
 			config.RateLimit.Burst = b
 		}
 	}
-
 	if serverPort := os.Getenv("PORT"); serverPort != "" {
 		port, err := strconv.Atoi(serverPort)
 		if err == nil {
@@ -153,9 +156,10 @@ func createDefaultConfig() {
 			PidFile: "./fileserver.pid",
 			LogFile: "./fileserver.log",
 		},
-		Port:     defaultPort,
-		UserFile: "./users.json",
-		Storage:  "./files",
+		Port:       defaultPort,
+		UserFile:   "./users.json",
+		Storage:    "./files",
+		CertFolder: "./certs",
 	}
 
 	// Marshal the default configuration to JSON
@@ -629,8 +633,8 @@ func startServer() {
 	http.HandleFunc("/delete/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDelete))))
 
 	// Load SSL certificate and key
-	certFile := "server.crt"
-	keyFile := "server.key"
+	certFile := filepath.Join(config.CertFolder, "server.crt")
+	keyFile := filepath.Join(config.CertFolder, "server.key")
 
 	_, errCert := os.Stat(certFile)
 	_, errKey := os.Stat(keyFile)

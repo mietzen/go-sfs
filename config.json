@@ -7,5 +7,6 @@
     "logFile": "./fileserver.log",
     "userFile": "./users.json",
     "storage": "./files",
+    "certFolder": "./certs",
     "port": 8081
 }
