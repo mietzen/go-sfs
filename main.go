@@ -221,6 +221,24 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Parse the URL path to extract the directory structure
+	urlParts := strings.Split(r.URL.Path, "/")
+	// Remove the first element which is an empty string
+	urlParts = urlParts[1:]
+
+	// Construct the directory path from URL parts
+	uploadPath := filepath.Join(urlParts...)
+	// Append the file name to the directory path
+	filePath := filepath.Join(config.Storage, uploadPath)
+
+	// Create directories recursively if they don't exist
+	err := os.MkdirAll(filePath, os.ModePerm)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Retrieve the file from the request
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -228,26 +246,30 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	filename := header.Filename
-	dst, err := os.Create(filepath.Join(config.Storage, filename))
+	// Create the destination file
+	dst, err := os.Create(filepath.Join(filePath, header.Filename))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer dst.Close()
+
+	// Copy the file contents
 	_, err = io.Copy(dst, file)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Retrieve the username from the request context
 	username, ok := r.Context().Value("username").(string)
 	if !ok {
 		log.Println("Failed to retrieve username from context")
 		username = "Unknown"
 	}
 
-	log.Printf("File uploaded: %s by user: %s\n", filename, username)
+	// Log the upload details
+	log.Printf("File uploaded: %s by user: %s\n", header.Filename, username)
 	fmt.Fprintf(w, "File uploaded successfully")
 }
 

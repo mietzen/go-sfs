@@ -14,10 +14,24 @@ import (
 )
 
 func TestHandleUpload(t *testing.T) {
+	// Set the storage directory in the config
+	config.Storage = "files"
 
-	config.Storage = `files`
+	// Define the nested directory structure
+	nestedDirs := []string{"folder1", "folder2", "folder3"}
+
+	// Construct the expected directory structure in the upload path
+	uploadPath := filepath.Join(append([]string{config.Storage}, nestedDirs...)...)
+
+	// Create nested directories if they don't exist
+	err := os.MkdirAll(uploadPath, os.ModePerm)
+	if err != nil {
+		t.Fatalf("Failed to create nested directories: %s", err)
+	}
+	defer os.RemoveAll(uploadPath)
+
 	// Create a temporary file for testing
-	tempFile, err := os.CreateTemp("", "test-file-")
+	tempFile, err := os.CreateTemp(uploadPath, "test-file-")
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %s", err)
 	}
@@ -42,7 +56,10 @@ func TestHandleUpload(t *testing.T) {
 	}
 	writer.Close()
 
-	req, err := http.NewRequest("PUT", "/upload", body)
+	// Construct the URL path with the nested directories
+	urlPath := "/upload/" + filepath.Join(nestedDirs...)
+
+	req, err := http.NewRequest("PUT", urlPath, body)
 	if err != nil {
 		t.Fatalf("Failed to create request: %s", err)
 	}
@@ -65,12 +82,11 @@ func TestHandleUpload(t *testing.T) {
 		t.Errorf("Handler returned unexpected body: got %v, expected %v", rr.Body.String(), expected)
 	}
 
-	// Check if the file was uploaded successfully
-	uploadedFilePath := filepath.Join("files", filepath.Base(tempFile.Name()))
+	// Check if the file was uploaded successfully to the expected path
+	uploadedFilePath := filepath.Join(uploadPath, filepath.Base(tempFile.Name()))
 	if _, err := os.Stat(uploadedFilePath); os.IsNotExist(err) {
 		t.Errorf("Uploaded file does not exist: %s", uploadedFilePath)
 	}
-	defer os.Remove(uploadedFilePath)
 }
 
 func TestHandleDownload(t *testing.T) {
