@@ -4,5 +4,6 @@
         "burst": 5
     },
     "pidFile": "./fileserver.pid",
-    "logFile": "./fileserver.log"
+    "logFile": "./fileserver.log",
+    "userFile": "users.json"
 }
