@@ -242,6 +242,7 @@ func handleFileList(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(fileInfos)
 }
 
+
 func calculateSHA256(filePath string) string {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -458,7 +459,7 @@ func startServer() {
 	http.HandleFunc("/upload", errorMiddleware(rateLimitMiddleware(authMiddleware(handleUpload))))
 	http.HandleFunc("/download/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDownload))))
 	http.HandleFunc("/files", errorMiddleware(rateLimitMiddleware(authMiddleware(handleFileList))))
-
+	http.HandleFunc("/delete/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDelete))))
 	log.Println("Server is running on http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
 }
