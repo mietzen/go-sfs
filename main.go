@@ -31,6 +31,7 @@ import (
 )
 
 type FileInfo struct {
+	Path       string    `json:"path"`
 	Name       string    `json:"name"`
 	UploadDate time.Time `json:"uploadDate"`
 	Size       int64     `json:"size"`
@@ -301,37 +302,37 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, file)
 }
 
+// handleFileList function with base directory removed from the path
 func handleFileList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	files, err := os.ReadDir(config.Storage)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	baseFolder := filepath.Base(config.Storage)
 
 	var fileInfos []FileInfo
-	for _, file := range files {
-		if !file.IsDir() {
-			filePath := filepath.Join(config.Storage, file.Name())
-			fileInfo, err := os.Stat(filePath)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
-			hash := calculateSHA256(filePath)
-
+	err := filepath.Walk(config.Storage, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			relativePath := strings.TrimPrefix(path, baseFolder)
+			relativePath = strings.TrimPrefix(relativePath, "/")
+			hash := calculateSHA256(path)
 			fileInfos = append(fileInfos, FileInfo{
-				Name:       file.Name(),
-				UploadDate: fileInfo.ModTime(),
-				Size:       fileInfo.Size(),
+				Path:       relativePath,
+				Name:       info.Name(),
+				UploadDate: info.ModTime(),
+				Size:       info.Size(),
 				SHA256:     hash,
 			})
 		}
+		return nil
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	username, ok := r.Context().Value("username").(string)
@@ -588,7 +589,7 @@ func startServer() {
 	serverAddr := fmt.Sprintf(":%d", config.Port)
 
 	// Register the request handlers
-	http.HandleFunc("/upload", errorMiddleware(rateLimitMiddleware(authMiddleware(handleUpload))))
+	http.HandleFunc("/upload/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleUpload))))
 	http.HandleFunc("/download/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDownload))))
 	http.HandleFunc("/files", errorMiddleware(rateLimitMiddleware(authMiddleware(handleFileList))))
 	http.HandleFunc("/delete/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDelete))))
@@ -664,4 +665,32 @@ func generateSelfSignedCert(certFile, keyFile string) error {
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
 
 	return nil
+}
+
+func isValidPath(path string, baseDir string) (bool, error) {
+	// Get the absolute path of the upload path
+	absUploadPath, err := filepath.Abs(path)
+	if err != nil {
+		return false, err
+	}
+
+	// Get the absolute path of the base directory
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return false, err
+	}
+
+	// Check if the upload path is within the base directory
+	relPath, err := filepath.Rel(absBaseDir, absUploadPath)
+	if err != nil {
+		return false, err
+	}
+
+	if relPath == ".." || filepath.IsAbs(relPath) {
+		// The upload path is trying to access files outside the base directory
+		return false, nil
+	}
+
+	// The upload path is valid
+	return true, nil
 }
