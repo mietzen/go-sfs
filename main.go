@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -71,6 +72,24 @@ func main() {
 	err = json.NewDecoder(configFile).Decode(&config)
 	if err != nil {
 		log.Fatalf("Error parsing config file: %s\n", err)
+	}
+
+	// Override configuration values with environment variables if set
+	if userFile := os.Getenv("USER_FILE"); userFile != "" {
+		config.UserFile = userFile
+	}
+	if storage := os.Getenv("STORAGE"); storage != "" {
+		config.Storage = storage
+	}
+	if requestsPerSecond := os.Getenv("LIMITER_REQUESTS_PER_SECOND"); requestsPerSecond != "" {
+		if rps, err := strconv.Atoi(requestsPerSecond); err == nil {
+			config.RateLimit.RequestsPerSecond = rps
+		}
+	}
+	if burst := os.Getenv("LIMITER_BURST"); burst != "" {
+		if b, err := strconv.Atoi(burst); err == nil {
+			config.RateLimit.Burst = b
+		}
 	}
 
 	// Create the rate limiter with the configured values
