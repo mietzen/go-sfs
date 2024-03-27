@@ -641,6 +641,10 @@ func startServer() {
 
 	if os.IsNotExist(errCert) || os.IsNotExist(errKey) {
 		log.Println("SSL certificate or key not found, generating self-signed certificates...")
+		err := os.MkdirAll(config.CertFolder, os.ModePerm)
+		if err != nil {
+			log.Fatalf("Error creating files folder: %s\n", err)
+		}
 		err = generateSelfSignedCert(certFile, keyFile)
 		if err != nil {
 			log.Fatalf("Error generating self-signed certificates: %s\n", err)
