@@ -3,14 +3,19 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -101,6 +106,13 @@ func main() {
 	if burst := os.Getenv("LIMITER_BURST"); burst != "" {
 		if b, err := strconv.Atoi(burst); err == nil {
 			config.RateLimit.Burst = b
+		}
+	}
+
+	if serverPort := os.Getenv("PORT"); serverPort != "" {
+		port, err := strconv.Atoi(serverPort)
+		if err == nil {
+			config.Port = port
 		}
 	}
 
@@ -559,10 +571,75 @@ func startServer() {
 	http.HandleFunc("/files", errorMiddleware(rateLimitMiddleware(authMiddleware(handleFileList))))
 	http.HandleFunc("/delete/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDelete))))
 
-	// Start the server
-	log.Printf("Server is running on http://localhost%s\n", serverAddr)
-	err = http.ListenAndServe(serverAddr, nil)
-	if err != nil {
-		log.Fatalf("Error starting server: %s\n", err)
+	// Load SSL certificate and key
+	certFile := "server.crt"
+	keyFile := "server.key"
+
+	_, errCert := os.Stat(certFile)
+	_, errKey := os.Stat(keyFile)
+
+	if os.IsNotExist(errCert) || os.IsNotExist(errKey) {
+		log.Println("SSL certificate or key not found, generating self-signed certificates...")
+		err = generateSelfSignedCert(certFile, keyFile)
+		if err != nil {
+			log.Fatalf("Error generating self-signed certificates: %s\n", err)
+		}
 	}
+
+	// Create HTTPS server
+	server := &http.Server{
+		Addr: serverAddr,
+	}
+
+	// Start the HTTPS server
+	log.Printf("Server is running on https://localhost%s\n", serverAddr)
+	err = server.ListenAndServeTLS(certFile, keyFile)
+	if err != nil {
+		log.Fatalf("Error starting HTTPS server: %s\n", err)
+	}
+}
+
+func generateSelfSignedCert(certFile, keyFile string) error {
+	// Generate RSA private key
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return err
+	}
+
+	// Generate certificate template
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Your Organization"},
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().AddDate(1, 0, 0),
+		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:    []string{"localhost"},
+	}
+
+	// Create certificate
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return err
+	}
+
+	// Write certificate to file
+	certOut, err := os.Create(certFile)
+	if err != nil {
+		return err
+	}
+	defer certOut.Close()
+	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	// Write private key to file
+	keyOut, err := os.Create(keyFile)
+	if err != nil {
+		return err
+	}
+	defer keyOut.Close()
+	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
+
+	return nil
 }

@@ -1,6 +1,8 @@
 go.sum
-users
+users.json
 files
 fileserver.pid
 fileserver.log
 go-simple-fileserver
+server.crt
+server.key

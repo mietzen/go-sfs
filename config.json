@@ -6,5 +6,6 @@
     "pidFile": "./fileserver.pid",
     "logFile": "./fileserver.log",
     "userFile": "./users.json",
-    "storage": "./files"
+    "storage": "./files",
+    "port": 8081
 }
