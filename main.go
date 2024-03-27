@@ -230,7 +230,10 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Construct the directory path from URL parts
 	uploadPath := filepath.Join(urlParts...)
 
-	isValid, err := isValidPath(uploadPath, config.Storage)
+	// Append the file name to the directory path
+	filePath := filepath.Join(config.Storage, uploadPath)
+
+	isValid, err := isValidPath(filePath, config.Storage)
 	if err != nil {
 		log.Fatalf("Error validating path: %s\n", err)
 		return
@@ -240,9 +243,6 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
-
-	// Append the file name to the directory path
-	filePath := filepath.Join(config.Storage, uploadPath)
 
 	// Create directories recursively if they don't exist
 	err = os.MkdirAll(filePath, os.ModePerm)
@@ -294,6 +294,17 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	filename := filepath.Base(r.URL.Path)
 	filePath := filepath.Join(config.Storage, filename)
+
+	isValid, err := isValidPath(filePath, config.Storage)
+	if err != nil {
+		log.Fatalf("Error validating path: %s\n", err)
+		return
+	}
+
+	if !isValid {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -366,6 +377,17 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 	// Extract filename from URL
 	filename := filepath.Base(r.URL.Path)
 	filePath := filepath.Join(config.Storage, filename)
+
+	isValid, err := isValidPath(filePath, config.Storage)
+	if err != nil {
+		log.Fatalf("Error validating path: %s\n", err)
+		return
+	}
+
+	if !isValid {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 
 	// Check if the file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
