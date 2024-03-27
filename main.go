@@ -296,8 +296,17 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filename := filepath.Base(r.URL.Path)
-	filePath := filepath.Join(config.Storage, filename)
+	// Parse the URL path to extract the directory structure
+	urlParts := strings.Split(r.URL.Path, "/")
+	// Remove the first element which is an empty string
+	urlParts = urlParts[2:]
+
+	// Construct the directory path from URL parts
+	uploadPath := filepath.Join(urlParts...)
+
+	// Append the file name to the directory path
+	filePath := filepath.Join(config.Storage, uploadPath)
+	filename := filepath.Base(filePath)
 
 	isValid, err := isValidPath(filePath, config.Storage)
 	if err != nil {
@@ -324,7 +333,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("File downloaded: %s by user: %s\n", filename, username)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filePath))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	io.Copy(w, file)
 }
@@ -378,9 +387,17 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract filename from URL
-	filename := filepath.Base(r.URL.Path)
-	filePath := filepath.Join(config.Storage, filename)
+	// Parse the URL path to extract the directory structure
+	urlParts := strings.Split(r.URL.Path, "/")
+	// Remove the first element which is an empty string
+	urlParts = urlParts[2:]
+
+	// Construct the directory path from URL parts
+	uploadPath := filepath.Join(urlParts...)
+
+	// Append the file name to the directory path
+	filePath := filepath.Join(config.Storage, uploadPath)
+	filename := filepath.Base(filePath)
 
 	isValid, err := isValidPath(filePath, config.Storage)
 	if err != nil {
