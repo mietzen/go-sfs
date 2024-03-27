@@ -46,6 +46,7 @@ type Config struct {
 		PidFile string `json:"pidFile"`
 		LogFile string `json:"logFile"`
 	} `json:"daemon"`
+	Port     int    `json:"port"`
 	UserFile string `json:"userFile"`
 	Storage  string `json:"storage"`
 }
@@ -55,7 +56,10 @@ var (
 	config  Config
 )
 
-const defaultConfigFile = "config.json"
+const (
+	defaultConfigFile = "config.json"
+	defaultPort       = 8080
+)
 
 func main() {
 	// Parse command-line flags
@@ -136,6 +140,7 @@ func createDefaultConfig() {
 			PidFile: "./fileserver.pid",
 			LogFile: "./fileserver.log",
 		},
+		Port:     defaultPort,
 		UserFile: "./users.json",
 		Storage:  "./files",
 	}
@@ -545,10 +550,19 @@ func startServer() {
 		log.Fatalf("Error creating files folder: %s\n", err)
 	}
 
+	// Define the server address using the configured port
+	serverAddr := fmt.Sprintf(":%d", config.Port)
+
+	// Register the request handlers
 	http.HandleFunc("/upload", errorMiddleware(rateLimitMiddleware(authMiddleware(handleUpload))))
 	http.HandleFunc("/download/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDownload))))
 	http.HandleFunc("/files", errorMiddleware(rateLimitMiddleware(authMiddleware(handleFileList))))
 	http.HandleFunc("/delete/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDelete))))
-	log.Println("Server is running on http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+
+	// Start the server
+	log.Printf("Server is running on http://localhost%s\n", serverAddr)
+	err = http.ListenAndServe(serverAddr, nil)
+	if err != nil {
+		log.Fatalf("Error starting server: %s\n", err)
+	}
 }
