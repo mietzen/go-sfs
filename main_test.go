@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +17,7 @@ func TestHandleUpload(t *testing.T) {
 
 	config.Storage = `files`
 	// Create a temporary file for testing
-	tempFile, err := ioutil.TempFile("", "test-file-")
+	tempFile, err := os.CreateTemp("", "test-file-")
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %s", err)
 	}
@@ -77,7 +76,7 @@ func TestHandleUpload(t *testing.T) {
 func TestHandleDownload(t *testing.T) {
 	config.Storage = `files`
 	// Create a temporary file for testing
-	tempFile, err := ioutil.TempFile("files", "test-file-")
+	tempFile, err := os.CreateTemp("files", "test-file-")
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %s", err)
 	}
@@ -139,7 +138,7 @@ func TestHandleFileList(t *testing.T) {
 	// Create temporary files for testing
 	tempFiles := []string{"test-file-1.txt", "test-file-2.txt", "test-file-3.txt"}
 	for _, fileName := range tempFiles {
-		tempFile, err := ioutil.TempFile("files", fileName)
+		tempFile, err := os.CreateTemp("files", fileName)
 		if err != nil {
 			t.Fatalf("Failed to create temporary file: %s", err)
 		}
@@ -184,7 +183,7 @@ func TestHandleFileList(t *testing.T) {
 
 func TestHandleDelete(t *testing.T) {
 	// Create a temporary file for testing
-	tempFile, err := ioutil.TempFile("files", "test-file-")
+	tempFile, err := os.CreateTemp("files", "test-file-")
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %s", err)
 	}
@@ -285,7 +284,7 @@ func TestErrorMiddleware(t *testing.T) {
 
 func TestCalculateSHA256(t *testing.T) {
 	// Create a temporary file for testing
-	tempFile, err := ioutil.TempFile("", "test-file-")
+	tempFile, err := os.CreateTemp("", "test-file-")
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %s", err)
 	}
@@ -313,7 +312,7 @@ func TestCalculateSHA256(t *testing.T) {
 func TestAuthenticateUser(t *testing.T) {
 	// Create a temporary users file for testing
 	usersJSON := `[{"username": "user1", "password": "$argon2id$v=19$m=65536,t=1,p=4$269e5f62e25fc34809298e0f45a12058$1d36153d33b56e29b0dfb53753a648b077a544b2d1e30845d6bd0960ece4f7cd"}]`
-	tempFile, err := ioutil.TempFile("", "test-users-*.json")
+	tempFile, err := os.CreateTemp("", "test-users-*.json")
 	if err != nil {
 		t.Fatalf("Failed to create temporary file: %s", err)
 	}

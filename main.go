@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -148,7 +147,7 @@ func createDefaultConfig() {
 	}
 
 	// Write the default configuration to config.json
-	err = ioutil.WriteFile(defaultConfigFile, configData, 0644)
+	err = os.WriteFile(defaultConfigFile, configData, 0644)
 	if err != nil {
 		log.Fatalf("Error writing default config to file: %s\n", err)
 	}
