@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -55,6 +56,8 @@ var (
 	config  Config
 )
 
+const defaultConfigFile = "config.json"
+
 func main() {
 	// Parse command-line flags
 	usernameFlag := flag.String("u", "", "Username to add")
@@ -63,7 +66,13 @@ func main() {
 	flag.Parse()
 
 	// Read the configuration from config.json
-	configFile, err := os.Open("config.json")
+	if _, err := os.Stat(defaultConfigFile); os.IsNotExist(err) {
+		// Config file does not exist, create it with default values
+		createDefaultConfig()
+	}
+
+	// Read the configuration from config.json
+	configFile, err := os.Open(defaultConfigFile)
 	if err != nil {
 		log.Fatalf("Error opening config file: %s\n", err)
 	}
@@ -109,6 +118,40 @@ func main() {
 
 	// Start the server
 	startServer()
+}
+
+func createDefaultConfig() {
+	// Create default configuration
+	config := Config{
+		RateLimit: struct {
+			RequestsPerSecond int `json:"requestsPerSecond"`
+			Burst             int `json:"burst"`
+		}{
+			RequestsPerSecond: 1,
+			Burst:             5,
+		},
+		Daemon: struct {
+			PidFile string `json:"pidFile"`
+			LogFile string `json:"logFile"`
+		}{
+			PidFile: "./fileserver.pid",
+			LogFile: "./fileserver.log",
+		},
+		UserFile: "./users.json",
+		Storage:  "./files",
+	}
+
+	// Marshal the default configuration to JSON
+	configData, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		log.Fatalf("Error marshaling default config: %s\n", err)
+	}
+
+	// Write the default configuration to config.json
+	err = ioutil.WriteFile(defaultConfigFile, configData, 0644)
+	if err != nil {
+		log.Fatalf("Error writing default config to file: %s\n", err)
+	}
 }
 
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
