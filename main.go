@@ -550,7 +550,7 @@ func addUser(username, password string) {
 
 func readUsers() ([]User, error) {
 	// Read the users file
-	data, err := os.ReadFile("users")
+	data, err := os.ReadFile(config.UserFile)
 	if err != nil {
 		// If the file doesn't exist, return an empty slice
 		if os.IsNotExist(err) {
@@ -577,7 +577,7 @@ func writeUsers(users []User) error {
 	}
 
 	// Write the JSON data to the users file
-	err = os.WriteFile("users", data, 0644)
+	err = os.WriteFile(config.UserFile, data, 0644)
 	if err != nil {
 		return err
 	}
