@@ -1,14 +1,10 @@
-name: "Auto Release"
+name: "Release"
 on:
-  pull_request:
-    types:
-      - closed
+  workflow_dispatch:
 
 jobs:
-  auto-release:
-    if: github.event.pull_request.merged == true && github.event.pull_request.user.login == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'docker')
-
-    name: "Auto Release"
+  release:
+    name: "Release"
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout
