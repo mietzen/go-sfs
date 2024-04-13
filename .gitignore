@@ -5,3 +5,5 @@ fileserver.pid
 fileserver.log
 go-simple-fileserver
 certs/*
+config/*
+data/*

@@ -3,10 +3,10 @@
         "requestsPerSecond": 1,
         "burst": 5
     },
-    "pidFile": "./fileserver.pid",
-    "logFile": "./fileserver.log",
-    "userFile": "./users.json",
-    "storage": "./files",
-    "certFolder": "./certs",
+    "pidFile": "./config/pid",
+    "logFile": "./config/log",
+    "userFile": "./config/users.json",
+    "storage": "./data",
+    "certFolder": "./config/certs",
     "port": 8081
 }

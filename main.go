@@ -64,7 +64,7 @@ var (
 )
 
 const (
-	defaultConfigFile = "config.json"
+	defaultConfigFile = "./config/config.json"
 	defaultPort       = 8080
 )
 
@@ -153,13 +153,13 @@ func createDefaultConfig() {
 			PidFile string `json:"pidFile"`
 			LogFile string `json:"logFile"`
 		}{
-			PidFile: "./fileserver.pid",
-			LogFile: "./fileserver.log",
+			PidFile: "./config/pid",
+			LogFile: "./config/log",
 		},
 		Port:       defaultPort,
-		UserFile:   "./users.json",
-		Storage:    "./files",
-		CertFolder: "./certs",
+		UserFile:   "./config/users.json",
+		Storage:    "./data",
+		CertFolder: "./config/certs",
 	}
 
 	// Marshal the default configuration to JSON
