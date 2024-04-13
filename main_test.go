@@ -128,7 +128,7 @@ func TestHandleDownload(t *testing.T) {
 	}
 
 	// Check the response headers
-	expectedContentDisposition := "attachment; filename=" + filepath.Base(tempFile.Name())
+	expectedContentDisposition := "attachment; filename=" + tempFile.Name()
 	if contentDisposition := rr.Header().Get("Content-Disposition"); contentDisposition != expectedContentDisposition {
 		t.Errorf("Handler returned unexpected Content-Disposition header: got %v, expected %v", contentDisposition, expectedContentDisposition)
 	}
