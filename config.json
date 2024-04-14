@@ -3,10 +3,12 @@
         "requestsPerSecond": 1,
         "burst": 5
     },
-    "pidFile": "./config/pid",
-    "logFile": "./config/log",
+    "daemon": {
+        "pidFile": "./config/pid",
+        "logFile": "./config/log"
+    },
+    "port": 8080,
     "userFile": "./config/users.json",
     "storage": "./data",
-    "certFolder": "./config/certs",
-    "port": 8081
+    "certFolder": "./config/certs"
 }
