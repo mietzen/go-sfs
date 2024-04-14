@@ -10,7 +10,7 @@ RUN go build -o /tmp/file-server
 FROM scratch
 
 COPY --from=builder /tmp/file-server /file-server
-EXPOSE 8081
+EXPOSE 8080
 VOLUME [ "/config", "/data" ]
 
 ENTRYPOINT ["/file-server"]
