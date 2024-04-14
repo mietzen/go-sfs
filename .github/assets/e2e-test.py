@@ -40,7 +40,6 @@ class FileServerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls._test_dir = Path(tempfile.mkdtemp())
-        print(f'Testing in {cls._test_dir}')
         cls.base_url = "https://localhost:8080"
         cls.application = None
         cls.container_id = None
@@ -214,4 +213,4 @@ if __name__ == "__main__":
         print("or like: python e2e-test.py --docker docker-image-name:tag")
         sys.exit(1)
     sys.argv = [sys.argv[0]]
-    unittest.main()
+    unittest.main(verbosity=2)
