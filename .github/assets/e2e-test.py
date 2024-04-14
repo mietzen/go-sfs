@@ -38,38 +38,38 @@ class FileServerTest(unittest.TestCase):
         self.req_auth = ("test", "test")
 
     @classmethod
-    def setUpClass(cls):
-        cls._test_dir = Path(tempfile.mkdtemp())
-        cls.base_url = "https://localhost:8080"
-        cls.application = None
-        cls.container_id = None
-        cls._data_dir = cls._test_dir.joinpath('data')
-        cls._config_dir = cls._test_dir.joinpath('config')
-        cls._data_dir.mkdir(parents=True, exist_ok=True)
-        cls._config_dir.mkdir(parents=True, exist_ok=True)
-        if cls.EXECUTABLE:
-            shutil.copy2(cls.EXECUTABLE, cls._test_dir)
-            cls.application = [cls._test_dir.joinpath(cls.EXECUTABLE.name)]
+    def setUpClass(self):
+        self._test_dir = Path(tempfile.mkdtemp())
+        self.base_url = "https://localhost:8080"
+        self.application = None
+        self.container_id = None
+        self._data_dir = self._test_dir.joinpath('data')
+        self._config_dir = self._test_dir.joinpath('config')
+        self._data_dir.mkdir(parents=True, exist_ok=True)
+        self._config_dir.mkdir(parents=True, exist_ok=True)
+        if self.EXECUTABLE:
+            shutil.copy2(self.EXECUTABLE, self._test_dir)
+            self.application = [self._test_dir.joinpath(self.EXECUTABLE.name)]
             proc = subprocess.run(
-                [cls._test_dir.joinpath(cls.EXECUTABLE.name), '-d'])
+                [self._test_dir.joinpath(self.EXECUTABLE.name), '-d'])
             if proc.returncode != 0:
                 print('Setup FAILED!')
                 print(str(proc.stdout))
                 sys.exit(1)
             sleep(0.5)
-        elif cls.DOCKER:
+        elif self.DOCKER:
             proc = subprocess.run([
                 'docker', "run", "-d",
                 "-p", "8080:8080",
-                "-v", f"{str(cls._test_dir.joinpath('data'))}:/data",
-                "-v", f"{str(cls._test_dir.joinpath('config'))}:/config",
-                cls.DOCKER_IMAGE],
+                "-v", f"{str(self._test_dir.joinpath('data'))}:/data",
+                "-v", f"{str(self._test_dir.joinpath('config'))}:/config",
+                self.DOCKER_IMAGE],
                 stdout=subprocess.PIPE)
 
-            cls.container_id = proc.stdout.decode('UTF-8').strip()
-            cls.application = ['docker', 'exec',
-                               '-it', cls.container_id, '/file-server']
-            sleep(3)
+            self.container_id = proc.stdout.decode('UTF-8').strip()
+            self.application = ['docker', 'exec',
+                               '-it', self.container_id, '/file-server']
+            sleep(0.5)
             if proc.returncode != 0:
                 print('Setup FAILED!')
                 print(str(proc.stdout))
@@ -186,10 +186,10 @@ class FileServerTest(unittest.TestCase):
     #     self.assertEqual(response.status_code, 404)
 
     @classmethod
-    def tearDownClass(cls):
-        if cls.DOCKER:
-            subprocess.run(['docker', 'rm', '-f', cls.container_id])
-        shutil.rmtree(cls._test_dir, ignore_errors=True)
+    def tearDownClass(self):
+        if self.DOCKER:
+            subprocess.run(['docker', 'rm', '-f', self.container_id])
+        shutil.rmtree(self._test_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
