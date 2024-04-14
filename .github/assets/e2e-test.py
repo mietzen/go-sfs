@@ -51,7 +51,8 @@ class FileServerTest(unittest.TestCase):
             shutil.copy2(self.EXECUTABLE, self._test_dir)
             self.application = [self._test_dir.joinpath(self.EXECUTABLE.name)]
             proc = subprocess.run(
-                [self._test_dir.joinpath(self.EXECUTABLE.name), '-d'])
+                [self._test_dir.joinpath(self.EXECUTABLE.name), '-d'],
+                stdout=subprocess.PIPE)
             if proc.returncode != 0:
                 print('Setup FAILED!')
                 print(str(proc.stdout))
@@ -103,7 +104,7 @@ class FileServerTest(unittest.TestCase):
 
     def test_add_user(self):
         proc = subprocess.run(
-            self.application + ["-u", "test", "-p", "test123"])
+            self.application + ["-u", "test", "-p", "test123"], stdout=subprocess.PIPE)
         self.assertEqual(proc.returncode, 0)
 
         with open(self._config_dir.joinpath('users.json'), 'r') as fid:
@@ -113,7 +114,7 @@ class FileServerTest(unittest.TestCase):
         self.assertTrue(verify_go_argon2_pw(users[0]['password'], 'test123'))
 
         proc = subprocess.run(
-            self.application + ["-u", "test2", "-p", "123test"])
+            self.application + ["-u", "test2", "-p", "123test"], stdout=subprocess.PIPE)
         self.assertEqual(proc.returncode, 0)
 
         with open(self._config_dir.joinpath('users.json'), 'r') as fid:
@@ -123,7 +124,7 @@ class FileServerTest(unittest.TestCase):
         self.assertTrue(verify_go_argon2_pw(users[1]['password'], '123test'))
 
     def test_update_user(self):
-        proc = subprocess.run(self.application + ["-u", "test", "-p", "test", "-f"])
+        proc = subprocess.run(self.application + ["-u", "test", "-p", "test", "-f"], stdout=subprocess.PIPE)
         self.assertEqual(proc.returncode, 0)
         with open(self._config_dir.joinpath('users.json'), 'r') as fid:
             users = json.load(fid)
@@ -188,7 +189,7 @@ class FileServerTest(unittest.TestCase):
     @classmethod
     def tearDownClass(self):
         if self.DOCKER:
-            subprocess.run(['docker', 'rm', '-f', self.container_id])
+            subprocess.run(['docker', 'rm', '-f', self.container_id], stdout=subprocess.PIPE)
         shutil.rmtree(self._test_dir, ignore_errors=True)
 
 
