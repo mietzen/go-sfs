@@ -34,7 +34,6 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Create Release
-        if: github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
         run:
