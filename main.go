@@ -72,6 +72,7 @@ func main() {
 	// Parse command-line flags
 	usernameFlag := flag.String("u", "", "Username to add")
 	passwordFlag := flag.String("p", "", "Password for the user")
+	forceFlag := flag.Bool("f", false, "Force new password for the user")
 	daemonFlag := flag.Bool("d", false, "Run in daemon mode")
 	flag.Parse()
 
@@ -125,7 +126,7 @@ func main() {
 
 	// Check if the -u flag is provided
 	if *usernameFlag != "" {
-		addUser(*usernameFlag, *passwordFlag)
+		addUser(*usernameFlag, *passwordFlag, *forceFlag)
 		return
 	}
 
@@ -491,7 +492,7 @@ func verifyPassword(password, hashedPassword string) bool {
 	return subtle.ConstantTimeCompare(key, hash) == 1
 }
 
-func addUser(username, password string) {
+func addUser(username, password string, force bool) {
 	// Read the existing users from the users file
 	users, err := readUsers()
 	if err != nil {
@@ -499,16 +500,19 @@ func addUser(username, password string) {
 	}
 
 	// Check if the user already exists
-	for _, user := range users {
-		if user.Username == username {
-			fmt.Printf("User '%s' already exists. Do you want to overwrite the password? (y/n): ", username)
-			var confirm string
-			fmt.Scanln(&confirm)
-			if confirm != "y" {
-				fmt.Println("User not updated.")
-				return
+
+	if !force {
+		for _, user := range users {
+			if user.Username == username {
+				fmt.Printf("User '%s' already exists. Do you want to overwrite the password? (y/n): ", username)
+				var confirm string
+				fmt.Scanln(&confirm)
+				if confirm != "y" {
+					fmt.Println("User not updated.")
+					return
+				}
+				break
 			}
-			break
 		}
 	}
 

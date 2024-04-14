@@ -124,7 +124,7 @@ class FileServerTest(unittest.TestCase):
         self.assertTrue(verify_go_argon2_pw(users[1]['password'], '123test'))
 
     def test_update_user(self):
-        proc = subprocess.run(self.application + ["-u", "test", "-p", "test"])
+        proc = subprocess.run(self.application + ["-u", "test", "-p", "test", "-f"])
         self.assertEqual(proc.returncode, 0)
         with open(self._config_dir.joinpath('users.json'), 'r') as fid:
             users = json.load(fid)
