@@ -1,7 +1,16 @@
 name: "Release"
 on:
   workflow_dispatch:
-
+    inputs:
+      bumpstep:
+        description: 'Version bump: major, minor, bug'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+          - major
+          - minor
+          - bug
 jobs:
   release:
     name: "Release"
@@ -16,9 +25,9 @@ jobs:
           LATEST_TAG=$(curl -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | jq -r '.name')
           if [[ ${LATEST_TAG} == 'null' ]]; then
             LATEST_TAG='0.0.0'
-          if
+          fi
           URL='https://gist.githubusercontent.com/mietzen/cd33efb65f91619201a45ac50dcfc29e/raw/bump-version'
-          echo "version=v$(wget -qO - ${URL} | bash -s ${LATEST_TAG} bug)" >> $GITHUB_OUTPUT
+          echo "version=v$(wget -qO - ${URL} | bash -s ${LATEST_TAG} ${{ inputs.bumpstep }})" >> $GITHUB_OUTPUT
       - uses: actions/create-github-app-token@v1
         id: generate-token
         with:
