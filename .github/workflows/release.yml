@@ -1,0 +1,28 @@
+name: "Release"
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: "Release"
+    runs-on: "ubuntu-latest"
+    steps:
+      - id: version
+        run: |
+          LATEST_TAG=$(curl -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | jq -r '.name')
+          if [[ ${LATEST_TAG} == 'null' ]]; then
+            LATEST_TAG='0.0.0'
+          if
+          URL='https://gist.githubusercontent.com/mietzen/cd33efb65f91619201a45ac50dcfc29e/raw/bump-version'
+          echo "version=v$(wget -qO - ${URL} | bash -s ${LATEST_TAG} bug)" >> $GITHUB_OUTPUT
+      - uses: actions/create-github-app-token@v1
+        id: generate-token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      - name: Create Release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run:
+          gh release create ${{ steps.version.outputs.version }} --generate-notes

@@ -1,0 +1,51 @@
+name: Build Go Binaries
+
+on:
+  pull_request:
+  release:
+    types: [published]
+
+jobs:
+  Build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+    - name: Install dependencies
+      run: go get .
+    - name: Build
+      run: go build -o go-sfs-${{ matrix.os }} -v ./main.go
+    - name: Test
+      run: go test
+    - uses: actions/create-github-app-token@v1
+      if: github.event_name == 'release'
+      id: generate-token
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    - name: Attach Binaries to release
+      if: github.event_name == 'release'
+      env:
+        GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+      run:
+        gh release upload ${{ github.event.release.tag_name }} go-sfs-${{ matrix.os }}
+
+  Check-Build:
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    needs:
+      - Build
+    steps:
+      - run: |
+          result="${{ needs.Build.result }}"
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi
