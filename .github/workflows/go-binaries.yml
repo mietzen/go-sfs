@@ -20,12 +20,21 @@ jobs:
     - name: Install dependencies
       run: go get .
     - name: Build
-      run: go build -v ./...
+      run: go build -o go-sfs-${{ matrix.os }} -v /main.go
     - name: Test
       run: go test
+    - uses: actions/create-github-app-token@v1
+      if: github.event_name == 'release'
+      id: generate-token
+      with:
+        app-id: ${{ secrets.APP_ID }}
+        private-key: ${{ secrets.APP_PRIVATE_KEY }}
     - name: Attach Binaries to release
       if: github.event_name == 'release'
-      run: echo "TODO"
+      env:
+        GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+      run:
+        gh release upload ${{ github.event.release.tag_name }} go-sfs-${{ matrix.os }}
 
   Check-Build:
     if: ${{ always() }}
