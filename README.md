@@ -1,53 +1,27 @@
-# File Server
+# Disclaimer
 
-A simple file server implemented in Go that allows users to upload, download, and list files. The server supports authentication, rate limiting, secure storage of user credentials, and the ability to run as a daemon.
+**It is a hobby project for me to toy around with go and build some CI/CD Pipelines for go projects.\
+This ships "as-is", there will be no support, use at own risk, etc.**
+
+# Go Simple File Server: go-sfs
+
+This Go project implements a simple file server with authentication, rate limiting, and daemon mode support.
 
 ## Features
 
-- Upload files using a PUT request
-- Download files using a GET request
-- List all uploaded files with their details (name, upload date, size, and SHA256 hash) using a GET request
-- User authentication using Basic Auth
-- User credentials stored securely as Argon2 hashes
-- Rate limiting to prevent excessive requests
-- Logging of file operations with username
-- Ability to run as a daemon in the background
-- Configuration options for rate limiting and daemon settings
-- Automatic creation of "files" folder if it doesn't exist
-- Command-line options for adding users and running in daemon mode
+- **Authentication**: Users can authenticate using basic authentication with a username and password.
+- **Rate Limiting**: Requests are rate-limited to prevent abuse.
+- **Daemon Mode**: Supports running as a daemon process.
+- **HTTPS Support**: The server runs over HTTPS with self-signed certificates.
+- **File Upload/Download**: Users can upload and download files securely.
 
-## Prerequisites
+## Getting Started
 
-- Go 1.16 or later
-- `golang.org/x/crypto/argon2` package
-- `github.com/sevlyar/go-daemon` package
+### Configuration
 
-## Installation
+The server can be configured via a JSON configuration file located at `./config/config.json`. You can modify the configuration according to your requirements.
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/fileserver.git
-   ```
-
-2. Change to the project directory:
-   ```
-   cd fileserver
-   ```
-
-3. Install the required dependencies:
-   ```
-   go get golang.org/x/crypto/argon2
-   go get github.com/sevlyar/go-daemon
-   ```
-
-4. Build the project:
-   ```
-   go build
-   ```
-
-## Configuration
-
-The server can be configured using a JSON configuration file named `config.json`. The configuration file should be placed in the same directory as the server binary. Here's an example configuration:
+If you're not providing a config a default config will be created:
 
 ```json
 {
@@ -56,88 +30,185 @@ The server can be configured using a JSON configuration file named `config.json`
     "burst": 5
   },
   "daemon": {
-    "pidFile": "fileserver.pid",
-    "logFile": "fileserver.log"
-  }
+    "pidFile": "./config/pid",
+    "logFile": "./config/log"
+  },
+  "port": 8080,
+  "userFile": "./config/users.json",
+  "storage": "./data",
+  "certFolder": "./config/certs"
 }
 ```
 
-- `rateLimit`: Settings for rate limiting.
-  - `requestsPerSecond`: The maximum number of requests allowed per second.
-  - `burst`: The maximum number of requests allowed to exceed the rate limit in a single burst.
-- `daemon`: Settings for running the server as a daemon.
-  - `pidFile`: The path to the file where the daemon's process ID will be stored.
-  - `logFile`: The path to the file where the daemon's logs will be written.
+### Docker
+
+#### Docker Compose Example
+
+You can also use Docker Compose to manage your file server container. Here's an example `docker-compose.yml` file:
+
+```yaml
+version: '3'
+
+services:
+  go-sfs:
+    image: mietzen/go-sfs
+    container_name: go-sfs
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/config
+      - ./data:/data
+    environment:
+      # - USER_FILE=/config/users.json
+      # - STORAGE=/data
+      # - CERTS=/config/certs
+      - LIMITER_REQUESTS_PER_SECOND=1
+      - LIMITER_BURST=5
+      - PORT=8080
+```
+
+Save this file as `docker-compose.yml` in your project directory, then run the following command:
+
+```bash
+docker-compose up -d
+```
+
+This will start the file server container in detached mode, using the configuration specified in the `docker-compose.yml` file.
+
+Now you can access your file server at `http://localhost:8080`.
+
+You can also override the configuration values using environment variables in the `docker-compose.yml` file as shown above.
+
+##### Adding a User
+
+To add a new user, use the `-u` flag followed by the username, and optionally the `-p` flag followed by the password:
+
+```bash
+docker exec go-sfs /go-sfs -u username
+```
+
+#### Building the Docker Image yourself
+
+To build the Docker image for the file server, navigate to the directory containing your Dockerfile and execute the following command:
+
+```bash
+docker build -t go-sfs .
+```
+
+### Binary
+
+#### Download
+
+You can Download the latest Binary here:
+
+[https://github.com/mietzen/go-sfs/releases/latest](https://github.com/mietzen/go-sfs/releases/latest)
+
+or build it yourself.
+
+#### Build
+
+1. Clone this repository:
+
+   ```bash
+   git clone https://github.com/mietzen/go-sfs.git
+   ```
+
+2. Navigate to the project directory:
+
+   ```bash
+   cd project-directory
+   ```
+
+3. Build the project:
+
+   ```bash
+   go build
+   ```
+
+4. Test the project:
+
+   ```bash
+   go test
+   ```
+
+#### Running the Server
+
+To run the server, execute the built executable:
+
+```bash
+./go-sfs
+```
+
+#### Environment
+
+You can use the following environment variables to overwrite settings:
+
+- USER_FILE=/config/users.json
+- STORAGE=/data
+- CERTS=/config/certs
+- LIMITER_REQUESTS_PER_SECOND=1
+- LIMITER_BURST=5
+- PORT=8080
+
+#### Adding a User
+
+To add a new user, use the `-u` flag followed by the username, and optionally the `-p` flag followed by the password:
+
+```bash
+./go-sfs -u username -p password
+```
+
+#### Running in Daemon Mode
+
+To run the server in daemon mode, use the `-d` flag:
+
+```bash
+./go-sfs -d
+```
 
 ## Usage
 
-1. Create a `users` file in the project directory containing the user credentials in JSON format:
-   ```json
-   [
-     {
-       "username": "user1",
-       "password": "$argon2id$v=19$m=65536,t=1,p=4$c2FsdA$hash"
-     },
-     {
-       "username": "user2",
-       "password": "$argon2id$v=19$m=65536,t=1,p=4$c2FsdA$hash"
-     }
-   ]
-   ```
-   Replace `"user1"` and `"user2"` with the desired usernames and `"$argon2id$v=19$m=65536,t=1,p=4$c2FsdA$hash"` with the actual Argon2 hashed passwords.
+### API Endpoints & Examples
 
-2. Run the server:
-   ```
-   ./fileserver
-   ```
+- **Upload File**: `PUT /upload/{path}`
+  - Upload a file to the specified path.
+- **Download File**: `GET /download/{path}`
+  - Download a file from the specified path.
+- **List Files**: `GET /files`
+  - List all files available for download.
+- **Delete File**: `DELETE /delete/{path}`
+  - Delete a file from the specified path.
 
-3. To add a new user, use the `-u` flag followed by the username. You can optionally provide the password using the `-p` flag. If the password is not provided, you will be prompted to enter it.
-   ```
-   ./fileserver -u newuser -p password
-   ```
-   or
-   ```
-   ./fileserver -u newuser
-   Password: ********
-   ```
+#### Upload a File
 
-4. To run the server as a daemon, use the `-d` flag:
-   ```
-   ./fileserver -d
-   ```
-
-5. The server will start running on `http://localhost:8080`.
-
-6. Use the following endpoints to interact with the file server:
-   - Upload a file:
-     ```
-     curl -u username:password -X PUT -F "file=@/path/to/file" http://localhost:8080/upload
-     ```
-   - Download a file:
-     ```
-     curl -u username:password -O http://localhost:8080/download/filename
-     ```
-   - List all files:
-     ```
-     curl -u username:password http://localhost:8080/files
-     ```
-
-   Replace `username` and `password` with the appropriate credentials, `/path/to/file` with the path to the file you want to upload, and `filename` with the name of the file you want to download.
-
-## Running Tests
-
-The project includes a set of test cases to verify the functionality of the file server. To run the tests, use the following command:
-
-```
-go test
+```bash
+curl -u username:password -X PUT -T "path/to/local/file" http://localhost:8080/upload/path/to/remote/file
 ```
 
-The tests cover various scenarios, including file upload, download, listing, and authentication.
+#### Download a File
+
+```bash
+curl -u username:password -OJ http://localhost:8080/download/path/to/file
+```
+
+#### List Files
+
+```bash
+curl -u username:password http://localhost:8080/files
+```
+
+#### Delete a File
+
+```bash
+curl -u username:password -X DELETE http://localhost:8080/delete/path/to/file
+```
+
+Replace `username`, `password`, `path/to/local/file`, and `path/to/remote/file` with appropriate values.
 
 ## Contributing
 
-Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request.
+Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
