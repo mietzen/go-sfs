@@ -20,7 +20,7 @@ jobs:
     - name: Install dependencies
       run: go get .
     - name: Build
-      run: go build -o go-sfs-${{ matrix.os }} -v /main.go
+      run: go build -o go-sfs-${{ matrix.os }} -v ./main.go
     - name: Test
       run: go test
     - uses: actions/create-github-app-token@v1
