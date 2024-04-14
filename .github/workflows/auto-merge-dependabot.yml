@@ -20,8 +20,7 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-      - uses: peter-evans/enable-pull-request-automerge@v3
-        with:
-          token: ${{ steps.generate-token.outputs.token }}
-          pull-request-number: ${{ github.event.pull_request.number }}
-          merge-method: squash
+      - name: Enable Pull Request Automerge
+        run: gh pr merge ${{ github.event.pull_request.number }} --merge --auto
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}

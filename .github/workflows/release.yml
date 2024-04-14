@@ -20,8 +20,9 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-      - uses: "softprops/action-gh-release@v2"
-        with:
-          token: ${{ steps.generate-token.outputs.token }}
-          tag_name: ${{ steps.get-version.outputs.version }}
-          generate_release_notes: true
+      - name: Create Release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run:
+          gh release create ${{ steps.get-version.outputs.version }} --generate-notes
