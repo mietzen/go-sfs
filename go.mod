@@ -7,5 +7,5 @@ require (
 	github.com/sevlyar/go-daemon v0.1.6
 	golang.org/x/crypto v0.22.0
 	golang.org/x/term v0.19.0
-	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
+	golang.org/x/time v0.5.0
 )
