@@ -24,6 +24,7 @@ jobs:
 
   Build:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: Setup
     env:
       VERSION: ${{ needs.Setup.outputs.version }}
