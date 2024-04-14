@@ -1,15 +1,16 @@
+import base64
+import json
 import os
-import requests
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
-import sys
-import subprocess
-import json
-from argon2 import PasswordHasher
 from pathlib import Path
-import shutil
 from time import sleep
-import base64
+
+import requests
+from argon2 import PasswordHasher
 
 
 def verify_go_argon2_pw(go_argon2, password):
@@ -63,7 +64,7 @@ class FileServerTest(unittest.TestCase):
             self.application = [self._test_dir.joinpath(self.EXECUTABLE.name)]
             proc = subprocess.run(
                 [self._test_dir.joinpath(self.EXECUTABLE.name), "-d"],
-                stdout=subprocess.PIPE,
+                stdout=subprocess.PIPE, check=False,
             )
             if proc.returncode != 0:
                 print("Setup FAILED!")
@@ -79,12 +80,12 @@ class FileServerTest(unittest.TestCase):
                     "-p",
                     "8080:8080",
                     "-v",
-                    f"{str(self._test_dir.joinpath('data'))}:/data",
+                    f"{self._test_dir.joinpath('data')!s}:/data",
                     "-v",
-                    f"{str(self._test_dir.joinpath('config'))}:/config",
+                    f"{self._test_dir.joinpath('config')!s}:/config",
                     self.DOCKER_IMAGE,
                 ],
-                stdout=subprocess.PIPE,
+                stdout=subprocess.PIPE, check=False,
             )
 
             self.container_id = proc.stdout.decode("UTF-8").strip()
@@ -126,22 +127,22 @@ class FileServerTest(unittest.TestCase):
 
     def test_add_user(self):
         proc = subprocess.run(
-            self.application + ["-u", "test", "-p", "test123"], stdout=subprocess.PIPE
+            self.application + ["-u", "test", "-p", "test123"], stdout=subprocess.PIPE, check=False,
         )
         self.assertEqual(proc.returncode, 0)
 
-        with open(self._config_dir.joinpath("users.json"), "r") as fid:
+        with open(self._config_dir.joinpath("users.json")) as fid:
             users = json.load(fid)
         self.assertEqual(len(users), 1)
         self.assertEqual(users[0]["username"], "test")
         self.assertTrue(verify_go_argon2_pw(users[0]["password"], "test123"))
 
         proc = subprocess.run(
-            self.application + ["-u", "test2", "-p", "123test"], stdout=subprocess.PIPE
+            self.application + ["-u", "test2", "-p", "123test"], stdout=subprocess.PIPE, check=False,
         )
         self.assertEqual(proc.returncode, 0)
 
-        with open(self._config_dir.joinpath("users.json"), "r") as fid:
+        with open(self._config_dir.joinpath("users.json")) as fid:
             users = json.load(fid)
         self.assertEqual(len(users), 2)
         self.assertEqual(users[1]["username"], "test2")
@@ -150,10 +151,10 @@ class FileServerTest(unittest.TestCase):
     def test_update_user(self):
         proc = subprocess.run(
             self.application + ["-u", "test", "-p", "test", "-f"],
-            stdout=subprocess.PIPE,
+            stdout=subprocess.PIPE, check=False,
         )
         self.assertEqual(proc.returncode, 0)
-        with open(self._config_dir.joinpath("users.json"), "r") as fid:
+        with open(self._config_dir.joinpath("users.json")) as fid:
             users = json.load(fid)
         self.assertEqual(users[0]["username"], "test")
         self.assertTrue(verify_go_argon2_pw(users[0]["password"], "test"))
@@ -166,12 +167,12 @@ class FileServerTest(unittest.TestCase):
         with open(file, "rb") as f:
             files = {"file": f}
             response = requests.put(
-                upload_url, files=files, auth=self.req_auth, verify=False
+                upload_url, files=files, auth=self.req_auth, verify=False,
             )
         self.assertEqual(response.status_code, 200)
         uploaded_file = self._data_dir.joinpath(file.name)
         self.assertTrue(uploaded_file.is_file())
-        with open(uploaded_file, "r") as fid:
+        with open(uploaded_file) as fid:
             self.assertEqual(file_content, fid.read())
 
     def test_upload_to_folder(self):
@@ -183,12 +184,12 @@ class FileServerTest(unittest.TestCase):
         with open(file, "rb") as f:
             files = {"file": f}
             response = requests.put(
-                upload_url, files=files, auth=self.req_auth, verify=False
+                upload_url, files=files, auth=self.req_auth, verify=False,
             )
         self.assertEqual(response.status_code, 200)
         uploaded_file = self._data_dir.joinpath(f"{folders}/{file.name}")
         self.assertTrue(uploaded_file.is_file())
-        with open(uploaded_file, "r") as fid:
+        with open(uploaded_file) as fid:
             self.assertEqual(file_content, fid.read())
 
     # def test_list_files(self):
@@ -221,7 +222,7 @@ class FileServerTest(unittest.TestCase):
     def tearDownClass(self):
         if self.DOCKER:
             subprocess.run(
-                ["docker", "rm", "-f", self.container_id], stdout=subprocess.PIPE
+                ["docker", "rm", "-f", self.container_id], stdout=subprocess.PIPE, check=False,
             )
         shutil.rmtree(self._test_dir, ignore_errors=True)
 
@@ -235,11 +236,10 @@ if __name__ == "__main__":
                 FileServerTest.DOCKER_IMAGE = sys.argv[2]
             else:
                 error = True
+        elif Path(sys.argv[1]).is_file():
+            FileServerTest.EXECUTABLE = Path(sys.argv[1])
         else:
-            if Path(sys.argv[1]).is_file():
-                FileServerTest.EXECUTABLE = Path(sys.argv[1])
-            else:
-                error = True
+            error = True
     else:
         error = True
     if error:
