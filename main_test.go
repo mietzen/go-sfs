@@ -168,6 +168,11 @@ func TestHandleDownload(t *testing.T) {
 	if contentType := rr.Header().Get("Content-Type"); contentType != expectedContentType {
 		t.Errorf("Handler returned unexpected Content-Type header: got %v, expected %v", contentType, expectedContentType)
 	}
+	checksum := calculateSHA256(tempFile.Name())
+	expectedDigest := fmt.Sprintf("sha-256=%s", checksum)
+	if digest := rr.Header().Get("Digest"); digest != expectedDigest {
+		t.Errorf("Handler returned unexpected Content-Type header: got %v, expected %v", digest, expectedDigest)
+	}
 }
 
 func TestHandleFileList(t *testing.T) {
