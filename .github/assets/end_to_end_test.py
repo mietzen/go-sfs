@@ -1,4 +1,4 @@
-# pylint: disable=missing-function-docstring, missing-class-docstring, missing-module-docstring
+# pylint: disable=missing-function-docstring, missing-class-docstring, missing-module-docstring, line-too-long
 
 import base64
 import hashlib
@@ -255,7 +255,7 @@ class FileServerTest(unittest.TestCase):
             sleep(0.25)
 
     def test_7_rate_limit(self):
-        burst = int(self.DEFAULT_CONFIG['rateLimit']['burst'])
+        burst = int(self.DEFAULT_CONFIG["rateLimit"]["burst"])
         sleep(burst)  # Cool down
         for i in range(1, burst + 2):
             response = self.requests.get(
@@ -271,7 +271,7 @@ class FileServerTest(unittest.TestCase):
     def test_8_bad_auth(self):
         response = self.requests.get(
             f"{self.base_url}/files",
-            auth=('Wrong', 'User'), verify=False,
+            auth=("Wrong", "User"), verify=False,
             timeout=30)
         self.assertEqual(response.status_code, 401)
 
