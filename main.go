@@ -74,6 +74,7 @@ func main() {
 	passwordFlag := flag.String("p", "", "Password for the user")
 	forceFlag := flag.Bool("f", false, "Force new password for the user")
 	daemonFlag := flag.Bool("d", false, "Run in daemon mode")
+	healthCheckFlag := flag.Bool("health", false, "Return Docker Health Check")
 	flag.Parse()
 
 	// Read the configuration from config.json
@@ -123,6 +124,10 @@ func main() {
 
 	// Create the rate limiter with the configured values
 	limiter = rate.NewLimiter(rate.Limit(config.RateLimit.RequestsPerSecond), config.RateLimit.Burst)
+
+	if *healthCheckFlag {
+		return
+	}
 
 	// Check if the -u flag is provided
 	if *usernameFlag != "" {
