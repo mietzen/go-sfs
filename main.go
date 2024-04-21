@@ -221,12 +221,20 @@ func errorMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func handleUpload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		handleDownload(w, r)
+	case http.MethodPut:
+		handleUpload(w, r)
+	case http.MethodDelete:
+		handleDelete(w, r)
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
+}
 
+func handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL path to extract the directory structure
 	urlParts := strings.Split(r.URL.Path, "/")
 	// Remove the first element which is an empty string
@@ -292,11 +300,6 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDownload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	// Parse the URL path to extract the directory structure
 	urlParts := strings.Split(r.URL.Path, "/")
 	// Remove the first element which is an empty string
@@ -337,6 +340,47 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filePath))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	io.Copy(w, file)
+}
+
+func handleDelete(w http.ResponseWriter, r *http.Request) {
+	// Parse the URL path to extract the directory structure
+	urlParts := strings.Split(r.URL.Path, "/")
+	// Remove the first element which is an empty string
+	urlParts = urlParts[2:]
+
+	// Construct the directory path from URL parts
+	uploadPath := filepath.Join(urlParts...)
+
+	// Append the file name to the directory path
+	filePath := filepath.Join(config.Storage, uploadPath)
+	filename := filepath.Base(filePath)
+
+	isValid, err := isValidPath(filePath, config.Storage)
+	if err != nil {
+		log.Fatalf("Error validating path: %s\n", err)
+		return
+	}
+
+	if !isValid {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Check if the file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	// Delete the file
+	if err := os.RemoveAll(filePath); err != nil {
+		http.Error(w, "Failed to delete file", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("File deleted: %s\n", filename)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("File deleted successfully"))
 }
 
 // handleFileList function with base directory removed from the path
@@ -380,52 +424,6 @@ func handleFileList(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("File list requested by user: %s\n", username)
 	json.NewEncoder(w).Encode(fileInfos)
-}
-
-func handleDelete(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse the URL path to extract the directory structure
-	urlParts := strings.Split(r.URL.Path, "/")
-	// Remove the first element which is an empty string
-	urlParts = urlParts[2:]
-
-	// Construct the directory path from URL parts
-	uploadPath := filepath.Join(urlParts...)
-
-	// Append the file name to the directory path
-	filePath := filepath.Join(config.Storage, uploadPath)
-	filename := filepath.Base(filePath)
-
-	isValid, err := isValidPath(filePath, config.Storage)
-	if err != nil {
-		log.Fatalf("Error validating path: %s\n", err)
-		return
-	}
-
-	if !isValid {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
-	// Check if the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		http.Error(w, "File not found", http.StatusNotFound)
-		return
-	}
-
-	// Delete the file
-	if err := os.RemoveAll(filePath); err != nil {
-		http.Error(w, "Failed to delete file", http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("File deleted: %s\n", filename)
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("File deleted successfully"))
 }
 
 func calculateSHA256(filePath string) string {
@@ -648,10 +646,8 @@ func startServer() {
 	serverAddr := fmt.Sprintf(":%d", config.Port)
 
 	// Register the request handlers
-	http.HandleFunc("/upload/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleUpload))))
-	http.HandleFunc("/download/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDownload))))
+	http.HandleFunc("/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleRoot))))
 	http.HandleFunc("/files", errorMiddleware(rateLimitMiddleware(authMiddleware(handleFileList))))
-	http.HandleFunc("/delete/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleDelete))))
 
 	// Load SSL certificate and key
 	certFile := filepath.Join(config.CertFolder, "server.crt")
