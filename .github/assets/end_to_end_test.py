@@ -79,6 +79,8 @@ class FileServerTest(unittest.TestCase):
         "storage": "./data",
         "certFolder": "./config/certs",
         "port": 8080,
+        "reverseProxy": False,
+        "baseURL": "localhost",
     }
     TEST_FILES = [
         {
@@ -195,7 +197,7 @@ class FileServerTest(unittest.TestCase):
                     auth=self.req_auth, verify=False,
                     timeout=30,
                 )
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, 201)
             uploaded_file = self._data_dir.joinpath(file_data["path"])
             self.assertTrue(uploaded_file.is_file())
             with open(uploaded_file, encoding="utf-8") as fid:
