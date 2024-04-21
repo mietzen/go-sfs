@@ -160,7 +160,6 @@ class FileServerTest(unittest.TestCase):
         self.assertDictEqual(config, default_config)
 
     def test_2_user(self):
-
         for idx, user in enumerate(self.TEST_USERS):
             proc = run_process(self.application +
                                ["-u", user["n"], "-p", user["p"]])
@@ -180,9 +179,10 @@ class FileServerTest(unittest.TestCase):
         self.assertTrue(verify_go_argon2_pw(users[0]["password"], "test"))
 
     def test_3_upload(self):
-        for idx, file_data in enumerate(self.TEST_FILES):
+        for file_data in self.TEST_FILES:
+            suffix = file_data['name'].rsplit('_', maxsplit=1)[-1]
             file = create_testfile(
-                content=file_data['content'], suffix=str(idx), directory=self._test_dir)
+                content=file_data['content'], suffix=suffix, directory=self._test_dir)
             if file_data['path'] == file_data['name']:
                 upload_url = f"{self.base_url}/upload/"
             else:
@@ -210,7 +210,8 @@ class FileServerTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_list = json.loads(response.text)
         self.assertEqual(len(response_list), 2)
-        expected = [{k: v for k, v in d.items() if k != 'content'} for d in self.TEST_FILES]
+        expected = [{k: v for k, v in d.items() if k != 'content'}
+                    for d in self.TEST_FILES]
         for x in response_list:
             self.assertListEqual(
                 list(x.keys()), ["path", "name", "uploadDate", "size", "sha256"])
