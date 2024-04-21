@@ -107,7 +107,7 @@ class FileServerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls._test_dir = Path(tempfile.mkdtemp(dir="."))
-        cls.base_url = "https://localhost:8080"
+        cls.base_url = f"https://{cls.DEFAULT_CONFIG['baseURL']}:{cls.DEFAULT_CONFIG['port']}"
         cls.application = None
         cls.container_id = None
         cls._data_dir = cls._test_dir.joinpath("data")
