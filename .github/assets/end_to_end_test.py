@@ -15,6 +15,15 @@ import requests
 from argon2 import PasswordHasher
 
 
+def run_process(cmd):
+    return subprocess.run(cmd, stdout=subprocess.PIPE, check=False)
+
+
+def load_json_file(filepath):
+    with open(filepath, encoding='utf-8') as f:
+        return json.load(f)
+
+
 def create_testfile(suffix='', content="", directory=None):
     filepath = Path(f'test_file_{suffix}')
     if directory:
@@ -82,17 +91,15 @@ class FileServerTest(unittest.TestCase):
         if cls.EXECUTABLE:
             shutil.copy2(cls.EXECUTABLE, cls._test_dir)
             cls.application = [cls._test_dir.joinpath(cls.EXECUTABLE.name)]
-            proc = subprocess.run(
-                [cls._test_dir.joinpath(cls.EXECUTABLE.name), "-d"],
-                stdout=subprocess.PIPE, check=False,
-            )
+            proc = run_process(
+                [cls._test_dir.joinpath(cls.EXECUTABLE.name), "-d"])
             if proc.returncode != 0:
                 print("Setup FAILED!")
                 print(str(proc.stdout))
                 sys.exit(1)
             sleep(0.5)
         elif cls.DOCKER:
-            proc = subprocess.run(
+            proc = run_process(
                 [
                     "docker",
                     "run",
@@ -104,9 +111,7 @@ class FileServerTest(unittest.TestCase):
                     "-v",
                     f"{cls._test_dir.joinpath('config')!s}:/config",
                     cls.DOCKER_IMAGE,
-                ],
-                stdout=subprocess.PIPE, check=False,
-            )
+                ])
 
             cls.container_id = proc.stdout.decode("UTF-8").strip()
             cls.application = [
@@ -127,8 +132,7 @@ class FileServerTest(unittest.TestCase):
             sys.exit(1)
 
     def test_1_default_config(self):
-        with open(self._config_dir.joinpath("config.json"), encoding='utf-8') as fid:
-            config = json.load(fid)
+        config = load_json_file(self._config_dir.joinpath("config.json"))
         default_config = {
             "rateLimit": {"requestsPerSecond": 1, "burst": 5},
             "daemon": {"logFile": "./config/log", "pidFile": "./config/pid"},
@@ -140,35 +144,23 @@ class FileServerTest(unittest.TestCase):
         self.assertDictEqual(config, default_config)
 
     def test_2_user(self):
-        proc = subprocess.run(
-            self.application + ["-u", "test", "-p", "test123"], stdout=subprocess.PIPE, check=False,
-        )
+        test_users = [
+            {"n":"test", "p": "test123"},
+            {"n": "test2", "p": "123test"}]
+        for idx, user in enumerate(test_users):
+            proc = run_process(self.application + ["-u", user["n"], "-p", user["p"]])
+            self.assertEqual(proc.returncode, 0)
+            users = load_json_file(self._config_dir.joinpath("users.json"))
+            self.assertEqual(len(users), idx+1)
+            self.assertEqual(users[idx]["username"], user["n"])
+            self.assertTrue(verify_go_argon2_pw(
+                users[idx]["password"], user["p"]))
+
+        proc = run_process(
+            self.application +
+            ["-u", "test", "-p", "test", "-f"])
         self.assertEqual(proc.returncode, 0)
-
-        with open(self._config_dir.joinpath("users.json"), encoding='utf-8') as fid:
-            users = json.load(fid)
-        self.assertEqual(len(users), 1)
-        self.assertEqual(users[0]["username"], "test")
-        self.assertTrue(verify_go_argon2_pw(users[0]["password"], "test123"))
-
-        proc = subprocess.run(
-            self.application + ["-u", "test2", "-p", "123test"], stdout=subprocess.PIPE, check=False,
-        )
-        self.assertEqual(proc.returncode, 0)
-
-        with open(self._config_dir.joinpath("users.json"), encoding='utf-8') as fid:
-            users = json.load(fid)
-        self.assertEqual(len(users), 2)
-        self.assertEqual(users[1]["username"], "test2")
-        self.assertTrue(verify_go_argon2_pw(users[1]["password"], "123test"))
-
-        proc = subprocess.run(
-            self.application + ["-u", "test", "-p", "test", "-f"],
-            stdout=subprocess.PIPE, check=False,
-        )
-        self.assertEqual(proc.returncode, 0)
-        with open(self._config_dir.joinpath("users.json"), encoding='utf-8') as fid:
-            users = json.load(fid)
+        users = load_json_file(self._config_dir.joinpath("users.json"))
         self.assertEqual(users[0]["username"], "test")
         self.assertTrue(verify_go_argon2_pw(users[0]["password"], "test"))
 
