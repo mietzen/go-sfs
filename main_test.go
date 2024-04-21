@@ -46,10 +46,7 @@ func TestHandleUpload(t *testing.T) {
 	}
 	tempFile.Close()
 
-	// Append the file name to the directory path
-	filePath := filepath.Join(config.Storage, uploadPath)
-
-	checksum := calculateSHA256(filepath.Join(filePath, tempFile.Name()))
+	checksum := calculateSHA256(tempFile.Name())
 
 	// Create a new HTTP request with the temporary file
 	body := new(bytes.Buffer)
@@ -82,9 +79,11 @@ func TestHandleUpload(t *testing.T) {
 	if status := rr.Code; status != http.StatusCreated {
 		t.Errorf("Handler returned wrong status code: got %v, expected %v", status, http.StatusCreated)
 	}
+
 	// Get base URI
 	baseURI := fmt.Sprintf("%s:%d", config.BaseURL, config.Port)
 
+	// Construct the expected response struct
 	expected := struct {
 		Status    int    `json:"status"`
 		Message   string `json:"message"`
@@ -100,11 +99,18 @@ func TestHandleUpload(t *testing.T) {
 		}{
 			SHA256: checksum,
 		},
-		URI: fmt.Sprintf("https://%s/%s/%s", baseURI, uploadPath, tempFile.Name()),
+		URI: fmt.Sprintf("https://%s%s/%s", baseURI, urlPath, filepath.Base(tempFile.Name())),
 	}
 
-	if rr.Body.String() != expected {
-		t.Errorf("Handler returned unexpected body: got %v, expected %v", rr.Body.String(), expected)
+	// Marshal the expected struct to JSON
+	expectedJSON, err := json.Marshal(expected)
+	if err != nil {
+		t.Fatalf("Failed to marshal expected JSON: %s", err)
+	}
+
+	// Check if the response body matches the expected JSON
+	if strings.TrimSpace(rr.Body.String()) != string(expectedJSON) {
+		t.Errorf("Handler returned unexpected body: got %v, expected %v", strings.TrimSpace(rr.Body.String()), string(expectedJSON))
 	}
 
 	// Check if the file was uploaded successfully to the expected path
