@@ -253,6 +253,28 @@ func TestHandleDelete(t *testing.T) {
 		t.Errorf("Handler returned wrong status code: got %v, expected %v", status, http.StatusOK)
 	}
 
+	// Construct the expected response struct
+	expected := struct {
+		Status  int    `json:"status"`
+		Message string `json:"message"`
+		File    string `json:"file"`
+	}{
+		Status:  http.StatusOK,
+		Message: "Deleted",
+		File:    filepath.Base(tempFile.Name()),
+	}
+
+	// Marshal the expected struct to JSON
+	expectedJSON, err := json.Marshal(expected)
+	if err != nil {
+		t.Fatalf("Failed to marshal expected JSON: %s", err)
+	}
+
+	// Check if the response body matches the expected JSON
+	if strings.TrimSpace(rr.Body.String()) != string(expectedJSON) {
+		t.Errorf("Handler returned unexpected body: got %v, expected %v", strings.TrimSpace(rr.Body.String()), string(expectedJSON))
+	}
+
 	// Check if the file was deleted successfully
 	if _, err := os.Stat(tempFile.Name()); !os.IsNotExist(err) {
 		t.Errorf("File was not deleted successfully")
