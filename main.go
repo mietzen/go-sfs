@@ -421,9 +421,21 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Construct the response
+	response := struct {
+		Status  int    `json:"status"`
+		Message string `json:"message"`
+		File    string `json:"file"`
+	}{
+		Status:  http.StatusOK,
+		Message: "Deleted",
+		File:    filename,
+	}
+
 	log.Printf("File deleted: %s\n", filename)
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("File deleted successfully"))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.Status)
+	json.NewEncoder(w).Encode(response)
 }
 
 // handleFileList function with base directory removed from the path
