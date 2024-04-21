@@ -238,7 +238,7 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL path to extract the directory structure
 	urlParts := strings.Split(r.URL.Path, "/")
 	// Remove the first element which is an empty string
-	urlParts = urlParts[2:]
+	urlParts = urlParts[1:]
 
 	// Construct the directory path from URL parts
 	uploadPath := filepath.Join(urlParts...)
@@ -303,7 +303,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL path to extract the directory structure
 	urlParts := strings.Split(r.URL.Path, "/")
 	// Remove the first element which is an empty string
-	urlParts = urlParts[2:]
+	urlParts = urlParts[1:]
 
 	// Construct the directory path from URL parts
 	uploadPath := filepath.Join(urlParts...)
@@ -346,7 +346,7 @@ func handleDelete(w http.ResponseWriter, r *http.Request) {
 	// Parse the URL path to extract the directory structure
 	urlParts := strings.Split(r.URL.Path, "/")
 	// Remove the first element which is an empty string
-	urlParts = urlParts[2:]
+	urlParts = urlParts[1:]
 
 	// Construct the directory path from URL parts
 	uploadPath := filepath.Join(urlParts...)

@@ -57,7 +57,7 @@ func TestHandleUpload(t *testing.T) {
 	writer.Close()
 
 	// Construct the URL path with the nested directories
-	urlPath := "/upload/" + filepath.Join(nestedDirs...)
+	urlPath := "/" + filepath.Join(nestedDirs...)
 
 	req, err := http.NewRequest("PUT", urlPath, body)
 	if err != nil {
@@ -106,7 +106,7 @@ func TestHandleDownload(t *testing.T) {
 	tempFile.Close()
 
 	// Create a new HTTP request
-	req, err := http.NewRequest("GET", "/download/"+filepath.Base(tempFile.Name()), nil)
+	req, err := http.NewRequest("GET", "/"+filepath.Base(tempFile.Name()), nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %s", err)
 	}
@@ -206,7 +206,7 @@ func TestHandleDelete(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Create a new HTTP request
-	req, err := http.NewRequest("DELETE", "/delete/"+filepath.Base(tempFile.Name()), nil)
+	req, err := http.NewRequest("DELETE", "/"+filepath.Base(tempFile.Name()), nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %s", err)
 	}

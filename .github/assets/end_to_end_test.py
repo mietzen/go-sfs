@@ -184,10 +184,10 @@ class FileServerTest(unittest.TestCase):
             file = create_testfile(
                 content=file_data["content"], suffix=suffix, directory=self._test_dir)
             if file_data["path"] == file_data["name"]:
-                upload_url = f"{self.base_url}/upload/"
+                upload_url = f"{self.base_url}/"
             else:
                 folders = str(Path(file_data["path"]).parents[0])
-                upload_url = f"{self.base_url}/upload/{folders}/"
+                upload_url = f"{self.base_url}/{folders}/"
             with open(file, "rb") as f:
                 files = {"file": f}
                 response = self.requests.put(
@@ -228,7 +228,7 @@ class FileServerTest(unittest.TestCase):
     def test_5_download(self):
         download_dir = Path(tempfile.mkdtemp(dir=self._test_dir))
         for file_meta_data in self.TEST_FILES:
-            url = f"{self.base_url}/download/{file_meta_data['path']}"
+            url = f"{self.base_url}/{file_meta_data['path']}"
             with self.requests.get(url, timeout=30, auth=self.req_auth, verify=False) as r:
                 self.assertEqual(r.status_code, 200)
                 with open(download_dir.joinpath(Path(file_meta_data["path"]).name), "wb")as f:
@@ -240,10 +240,10 @@ class FileServerTest(unittest.TestCase):
     def test_6_delete(self):
         for file_data in self.TEST_FILES:
             if file_data["path"] == file_data["name"]:
-                delete_url = f"{self.base_url}/delete/{file_data["name"]}"
+                delete_url = f"{self.base_url}/{file_data["name"]}"
             else:
                 folder = str(Path(file_data["path"]).parents[-2])
-                delete_url = f"{self.base_url}/delete/{folder}/"
+                delete_url = f"{self.base_url}/{folder}/"
             response = self.requests.delete(
                 delete_url,
                 auth=self.req_auth, verify=False,
