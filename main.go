@@ -378,10 +378,11 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		log.Println("Failed to retrieve username from context")
 		username = "Unknown"
 	}
-
+	checksum := calculateSHA256(filePath)
 	log.Printf("File downloaded: %s by user: %s\n", filename, username)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filePath))
 	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Digest", fmt.Sprintf("sha-256=%s", checksum))
 	io.Copy(w, file)
 }
 
