@@ -3,7 +3,6 @@
 import base64
 import hashlib
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -14,6 +13,16 @@ from time import sleep
 
 import requests
 from argon2 import PasswordHasher
+
+
+def create_testfile(suffix='', content="", directory=None):
+    filepath = Path(f'test_file_{suffix}')
+    if directory:
+        directory.mkdir(parents=True, exist_ok=True)
+        filepath = directory.joinpath(filepath)
+    with open(filepath, "w", encoding='utf-8') as fid:
+        fid.write(content)
+    return Path(filepath)
 
 
 def sha256sum(filename):
@@ -62,7 +71,7 @@ class FileServerTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls._test_dir = Path(tempfile.mkdtemp('.'))
+        cls._test_dir = Path(tempfile.mkdtemp(dir='.'))
         cls.base_url = "https://localhost:8080"
         cls.application = None
         cls.container_id = None
@@ -117,15 +126,6 @@ class FileServerTest(unittest.TestCase):
             print("No Test Application!")
             sys.exit(1)
 
-    def _create_testfile(self, suffix='', content="", directory=None):
-        filepath = Path(f'test_file_{suffix}')
-        if directory:
-            directory.mkdir(parents=True, exist_ok=True)
-            filepath = directory.joinpath(filepath)
-        with open(filepath, "w", encoding='utf-8') as fid:
-            fid.write(content)
-        return Path(filepath)
-
     def test_1_default_config(self):
         with open(self._config_dir.joinpath("config.json"), encoding='utf-8') as fid:
             config = json.load(fid)
@@ -174,7 +174,7 @@ class FileServerTest(unittest.TestCase):
 
     def test_3_upload(self):
         file_content = "test_upload"
-        file = self._create_testfile(
+        file = create_testfile(
             content=file_content, suffix='0', directory=self._test_dir)
         upload_url = f"{self.base_url}/upload/"
         with open(file, "rb") as f:
@@ -192,7 +192,7 @@ class FileServerTest(unittest.TestCase):
 
         file_content = "test_upload_to_folder"
         folders = "test1/test2/test3"
-        file = self._create_testfile(
+        file = create_testfile(
             content=file_content, suffix='1', directory=self._test_dir)
         upload_url = f"{self.base_url}/upload/{folders}/"
         with open(file, "rb") as f:
@@ -240,7 +240,18 @@ class FileServerTest(unittest.TestCase):
             self.assertTrue(found)
 
     def test_5_download(self):
-        pass
+        download_dir = Path(tempfile.mkdtemp(dir=self._test_dir))
+        file_list = [
+            ('test_file_0', 'f82d2cab9dd463d8815593a3207ece0fd44fd227fd0b34c042f28251adbb84e8'),
+            ('test1/test2/test3/test_file_1', '460a6c765563cbc2fbde1af001397324d0c21cd58603c4a1a7d5eb32690b2967')]
+        for filepath, file_hash in file_list:
+            url = f"{self.base_url}/download/{filepath}"
+            with self.requests.get(url, timeout=30, auth=self.req_auth, verify=False) as r:
+                self.assertEqual(r.status_code, 200)
+                with open(download_dir.joinpath(Path(filepath).name), 'wb')as f:
+                    f.write(r.content)
+            self.assertEqual(
+                sha256sum(download_dir.joinpath(Path(filepath).name)), file_hash)
 
     def test_6_delete(self):
         pass
