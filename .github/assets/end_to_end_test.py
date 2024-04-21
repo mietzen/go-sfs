@@ -72,6 +72,22 @@ class FileServerTest(unittest.TestCase):
     EXECUTABLE = None
     DOCKER = None
     DOCKER_IMAGE = None
+    TEST_FILES = [
+        {
+            "path": "test_file_0",
+            "name": "test_file_0",
+            "content": "test_upload",
+            "size": 11,
+            "sha256": "f82d2cab9dd463d8815593a3207ece0fd44fd227fd0b34c042f28251adbb84e8"},
+        {
+            "path": "test1/test2/test3/test_file_1",
+            "name": "test_file_1",
+            "content": "test_upload_to_folder",
+            "size": 21,
+            "sha256": "460a6c765563cbc2fbde1af001397324d0c21cd58603c4a1a7d5eb32690b2967"}]
+    TEST_USERS = [
+        {"n": "test", "p": "test123"},
+        {"n": "test2", "p": "123test"}]
 
     def setUp(self):
         self.req_auth = ("test", "test")
@@ -121,11 +137,11 @@ class FileServerTest(unittest.TestCase):
                 cls.container_id,
                 "/file-server",
             ]
-            sleep(0.5)
             if proc.returncode != 0:
                 print("Setup FAILED!")
                 print(str(proc.stdout))
                 sys.exit(1)
+            sleep(0.5)
         else:
             print("Setup FAILED!")
             print("No Test Application!")
@@ -144,11 +160,10 @@ class FileServerTest(unittest.TestCase):
         self.assertDictEqual(config, default_config)
 
     def test_2_user(self):
-        test_users = [
-            {"n":"test", "p": "test123"},
-            {"n": "test2", "p": "123test"}]
-        for idx, user in enumerate(test_users):
-            proc = run_process(self.application + ["-u", user["n"], "-p", user["p"]])
+
+        for idx, user in enumerate(self.TEST_USERS):
+            proc = run_process(self.application +
+                               ["-u", user["n"], "-p", user["p"]])
             self.assertEqual(proc.returncode, 0)
             users = load_json_file(self._config_dir.joinpath("users.json"))
             self.assertEqual(len(users), idx+1)
@@ -165,40 +180,26 @@ class FileServerTest(unittest.TestCase):
         self.assertTrue(verify_go_argon2_pw(users[0]["password"], "test"))
 
     def test_3_upload(self):
-        file_content = "test_upload"
-        file = create_testfile(
-            content=file_content, suffix='0', directory=self._test_dir)
-        upload_url = f"{self.base_url}/upload/"
-        with open(file, "rb") as f:
-            files = {"file": f}
-            response = self.requests.put(
-                upload_url, files=files,
-                auth=self.req_auth, verify=False,
-                timeout=30,
-            )
-        self.assertEqual(response.status_code, 200)
-        uploaded_file = self._data_dir.joinpath(file.name)
-        self.assertTrue(uploaded_file.is_file())
-        with open(uploaded_file, encoding='utf-8') as fid:
-            self.assertEqual(file_content, fid.read())
-
-        file_content = "test_upload_to_folder"
-        folders = "test1/test2/test3"
-        file = create_testfile(
-            content=file_content, suffix='1', directory=self._test_dir)
-        upload_url = f"{self.base_url}/upload/{folders}/"
-        with open(file, "rb") as f:
-            files = {"file": f}
-            response = self.requests.put(
-                upload_url, files=files,
-                auth=self.req_auth, verify=False,
-                timeout=30,
-            )
-        self.assertEqual(response.status_code, 200)
-        uploaded_file = self._data_dir.joinpath(f"{folders}/{file.name}")
-        self.assertTrue(uploaded_file.is_file())
-        with open(uploaded_file, encoding='utf-8') as fid:
-            self.assertEqual(file_content, fid.read())
+        for idx, file_data in enumerate(self.TEST_FILES):
+            file = create_testfile(
+                content=file_data['content'], suffix=str(idx), directory=self._test_dir)
+            if file_data['path'] == file_data['name']:
+                upload_url = f"{self.base_url}/upload/"
+            else:
+                folders = str(Path(file_data['path']).parents[0])
+                upload_url = f"{self.base_url}/upload/{folders}/"
+            with open(file, "rb") as f:
+                files = {"file": f}
+                response = self.requests.put(
+                    upload_url, files=files,
+                    auth=self.req_auth, verify=False,
+                    timeout=30,
+                )
+            self.assertEqual(response.status_code, 200)
+            uploaded_file = self._data_dir.joinpath(file_data['path'])
+            self.assertTrue(uploaded_file.is_file())
+            with open(uploaded_file, encoding='utf-8') as fid:
+                self.assertEqual(file_data['content'], fid.read())
 
     def test_4_list_files(self):
         response = self.requests.get(
@@ -209,17 +210,7 @@ class FileServerTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_list = json.loads(response.text)
         self.assertEqual(len(response_list), 2)
-        expected = [
-            {
-                "path": "test1/test2/test3/test_file_1",
-                "name": "test_file_1",
-                "size": 21,
-                "sha256": "460a6c765563cbc2fbde1af001397324d0c21cd58603c4a1a7d5eb32690b2967"},
-            {
-                "path": "test_file_0",
-                "name": "test_file_0",
-                "size": 11,
-                "sha256": "f82d2cab9dd463d8815593a3207ece0fd44fd227fd0b34c042f28251adbb84e8"}]
+        expected = [{k: v for k, v in d.items() if k != 'content'} for d in self.TEST_FILES]
         for x in response_list:
             self.assertListEqual(
                 list(x.keys()), ["path", "name", "uploadDate", "size", "sha256"])
@@ -233,17 +224,14 @@ class FileServerTest(unittest.TestCase):
 
     def test_5_download(self):
         download_dir = Path(tempfile.mkdtemp(dir=self._test_dir))
-        file_list = [
-            ('test_file_0', 'f82d2cab9dd463d8815593a3207ece0fd44fd227fd0b34c042f28251adbb84e8'),
-            ('test1/test2/test3/test_file_1', '460a6c765563cbc2fbde1af001397324d0c21cd58603c4a1a7d5eb32690b2967')]
-        for filepath, file_hash in file_list:
-            url = f"{self.base_url}/download/{filepath}"
+        for file_meta_data in self.TEST_FILES:
+            url = f"{self.base_url}/download/{file_meta_data['path']}"
             with self.requests.get(url, timeout=30, auth=self.req_auth, verify=False) as r:
                 self.assertEqual(r.status_code, 200)
-                with open(download_dir.joinpath(Path(filepath).name), 'wb')as f:
+                with open(download_dir.joinpath(Path(file_meta_data['path']).name), 'wb')as f:
                     f.write(r.content)
             self.assertEqual(
-                sha256sum(download_dir.joinpath(Path(filepath).name)), file_hash)
+                sha256sum(download_dir.joinpath(Path(file_meta_data['path']).name)), file_meta_data['sha256'])
 
     def test_6_delete(self):
         pass
