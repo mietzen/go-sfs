@@ -200,6 +200,7 @@ class FileServerTest(unittest.TestCase):
             self.assertTrue(uploaded_file.is_file())
             with open(uploaded_file, encoding="utf-8") as fid:
                 self.assertEqual(file_data["content"], fid.read())
+            sleep(0.25)
 
     def test_4_list_files(self):
         response = self.requests.get(
@@ -222,6 +223,7 @@ class FileServerTest(unittest.TestCase):
                     self.assertDictEqual(x, y)
                     found = True
             self.assertTrue(found)
+            sleep(0.25)
 
     def test_5_download(self):
         download_dir = Path(tempfile.mkdtemp(dir=self._test_dir))
@@ -233,9 +235,25 @@ class FileServerTest(unittest.TestCase):
                     f.write(r.content)
             self.assertEqual(
                 sha256sum(download_dir.joinpath(Path(file_meta_data["path"]).name)), file_meta_data["sha256"])
+            sleep(0.25)
 
     def test_6_delete(self):
-        pass
+        for file_data in self.TEST_FILES:
+            if file_data["path"] == file_data["name"]:
+                delete_url = f"{self.base_url}/delete/{file_data["name"]}"
+            else:
+                folder = str(Path(file_data["path"]).parents[-2])
+                delete_url = f"{self.base_url}/delete/{folder}/"
+            response = self.requests.delete(
+                delete_url,
+                auth=self.req_auth, verify=False,
+                timeout=30,
+            )
+            self.assertEqual(response.status_code, 200)
+            deleted_file = self._data_dir.joinpath(file_data["path"])
+            self.assertFalse(deleted_file.exists())
+            sleep(0.25)
+
 
     @classmethod
     def tearDownClass(cls):
