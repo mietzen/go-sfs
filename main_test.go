@@ -16,6 +16,8 @@ import (
 func TestHandleUpload(t *testing.T) {
 	// Set the storage directory in the config
 	config.Storage = "files"
+	config.Port = 8080
+	config.BaseURL = "localhost"
 
 	// Define the nested directory structure
 	nestedDirs := []string{"folder1", "folder2", "folder3"}
@@ -43,6 +45,11 @@ func TestHandleUpload(t *testing.T) {
 		t.Fatalf("Failed to write content to temporary file: %s", err)
 	}
 	tempFile.Close()
+
+	// Append the file name to the directory path
+	filePath := filepath.Join(config.Storage, uploadPath)
+
+	checksum := calculateSHA256(filepath.Join(filePath, tempFile.Name()))
 
 	// Create a new HTTP request with the temporary file
 	body := new(bytes.Buffer)
@@ -72,12 +79,30 @@ func TestHandleUpload(t *testing.T) {
 	handleUpload(rr, req)
 
 	// Check the response status code
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Handler returned wrong status code: got %v, expected %v", status, http.StatusOK)
+	if status := rr.Code; status != http.StatusCreated {
+		t.Errorf("Handler returned wrong status code: got %v, expected %v", status, http.StatusCreated)
+	}
+	// Get base URI
+	baseURI := fmt.Sprintf("%s:%d", config.BaseURL, config.Port)
+
+	expected := struct {
+		Status    int    `json:"status"`
+		Message   string `json:"message"`
+		Checksums struct {
+			SHA256 string `json:"sha256"`
+		} `json:"checksums"`
+		URI string `json:"uri"`
+	}{
+		Status:  http.StatusCreated,
+		Message: "Created",
+		Checksums: struct {
+			SHA256 string `json:"sha256"`
+		}{
+			SHA256: checksum,
+		},
+		URI: fmt.Sprintf("https://%s/%s/%s", baseURI, uploadPath, tempFile.Name()),
 	}
 
-	// Check the response body
-	expected := "File uploaded successfully"
 	if rr.Body.String() != expected {
 		t.Errorf("Handler returned unexpected body: got %v, expected %v", rr.Body.String(), expected)
 	}

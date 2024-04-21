@@ -52,10 +52,12 @@ type Config struct {
 		PidFile string `json:"pidFile"`
 		LogFile string `json:"logFile"`
 	} `json:"daemon"`
-	Port       int    `json:"port"`
-	UserFile   string `json:"userFile"`
-	Storage    string `json:"storage"`
-	CertFolder string `json:"certFolder"`
+	Port         int    `json:"port"`
+	UserFile     string `json:"userFile"`
+	Storage      string `json:"storage"`
+	CertFolder   string `json:"certFolder"`
+	BaseURL      string `json:"baseURL"`
+	ReverseProxy bool   `json:"reverseProxy"`
 }
 
 var (
@@ -104,6 +106,9 @@ func main() {
 	}
 	if certFolder := os.Getenv("CERTS"); certFolder != "" {
 		config.CertFolder = certFolder
+	}
+	if baseUrl := os.Getenv("BASE_URL"); baseUrl != "" {
+		config.BaseURL = baseUrl
 	}
 	if requestsPerSecond := os.Getenv("LIMITER_REQUESTS_PER_SECOND"); requestsPerSecond != "" {
 		if rps, err := strconv.Atoi(requestsPerSecond); err == nil {
@@ -162,10 +167,12 @@ func createDefaultConfig() {
 			PidFile: "./config/pid",
 			LogFile: "./config/log",
 		},
-		Port:       defaultPort,
-		UserFile:   "./config/users.json",
-		Storage:    "./data",
-		CertFolder: "./config/certs",
+		Port:         defaultPort,
+		UserFile:     "./config/users.json",
+		Storage:      "./data",
+		CertFolder:   "./config/certs",
+		BaseURL:      "localhost",
+		ReverseProxy: false,
 	}
 
 	// Marshal the default configuration to JSON
@@ -301,7 +308,38 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	// Log the upload details
 	log.Printf("File uploaded: %s by user: %s\n", header.Filename, username)
-	fmt.Fprintf(w, "File uploaded successfully")
+
+	// Calculate SHA256 checksum
+	checksum := calculateSHA256(filepath.Join(filePath, header.Filename))
+
+	// Get base URI
+	baseURI := fmt.Sprintf("%s:%d", config.BaseURL, config.Port)
+	if config.ReverseProxy {
+		baseURI = config.BaseURL
+	}
+	// Construct the response
+	response := struct {
+		Status    int    `json:"status"`
+		Message   string `json:"message"`
+		Checksums struct {
+			SHA256 string `json:"sha256"`
+		} `json:"checksums"`
+		URI string `json:"uri"`
+	}{
+		Status:  http.StatusCreated,
+		Message: "Created",
+		Checksums: struct {
+			SHA256 string `json:"sha256"`
+		}{
+			SHA256: checksum,
+		},
+		URI: fmt.Sprintf("https://%s/%s/%s", baseURI, uploadPath, header.Filename),
+	}
+
+	// Write the response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.Status)
+	json.NewEncoder(w).Encode(response)
 }
 
 func handleDownload(w http.ResponseWriter, r *http.Request) {

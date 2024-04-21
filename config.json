@@ -10,5 +10,6 @@
     "port": 8080,
     "userFile": "./config/users.json",
     "storage": "./data",
-    "certFolder": "./config/certs"
+    "certFolder": "./config/certs",
+    "baseURL": "localhost"
 }
