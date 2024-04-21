@@ -72,6 +72,14 @@ class FileServerTest(unittest.TestCase):
     EXECUTABLE = None
     DOCKER = None
     DOCKER_IMAGE = None
+    DEFAULT_CONFIG = {
+        "rateLimit": {"requestsPerSecond": 1, "burst": 5},
+        "daemon": {"logFile": "./config/log", "pidFile": "./config/pid"},
+        "userFile": "./config/users.json",
+        "storage": "./data",
+        "certFolder": "./config/certs",
+        "port": 8080,
+    }
     TEST_FILES = [
         {
             "path": "test_file_0",
@@ -149,15 +157,7 @@ class FileServerTest(unittest.TestCase):
 
     def test_1_default_config(self):
         config = load_json_file(self._config_dir.joinpath("config.json"))
-        default_config = {
-            "rateLimit": {"requestsPerSecond": 1, "burst": 5},
-            "daemon": {"logFile": "./config/log", "pidFile": "./config/pid"},
-            "userFile": "./config/users.json",
-            "storage": "./data",
-            "certFolder": "./config/certs",
-            "port": 8080,
-        }
-        self.assertDictEqual(config, default_config)
+        self.assertDictEqual(config, self.DEFAULT_CONFIG)
 
     def test_2_user(self):
         for idx, user in enumerate(self.TEST_USERS):
@@ -254,6 +254,26 @@ class FileServerTest(unittest.TestCase):
             self.assertFalse(deleted_file.exists())
             sleep(0.25)
 
+    def test_7_rate_limit(self):
+        burst = int(self.DEFAULT_CONFIG['rateLimit']['burst'])
+        sleep(burst)  # Cool down
+        for i in range(1, burst + 2):
+            response = self.requests.get(
+                f"{self.base_url}/files",
+                auth=self.req_auth, verify=False,
+                timeout=30)
+            if i <= burst:
+                self.assertEqual(response.status_code, 200)
+            elif i > burst:
+                self.assertEqual(response.status_code, 429)
+        sleep(1)
+
+    def test_8_bad_auth(self):
+        response = self.requests.get(
+            f"{self.base_url}/files",
+            auth=('Wrong', 'User'), verify=False,
+            timeout=30)
+        self.assertEqual(response.status_code, 401)
 
     @classmethod
     def tearDownClass(cls):
