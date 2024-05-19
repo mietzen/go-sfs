@@ -39,7 +39,7 @@ jobs:
 
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.12' 
+        python-version: '3.12'
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
@@ -65,7 +65,7 @@ jobs:
           --load \
           -f Dockerfile .
 
-    - name: Test
+    - name: E2E Test
       env:
         DOCKER_USER: ${{ vars.DOCKER_HUB_USERNAME || github.repository_owner }}
         BUILD_NR: ${{ github.run_number }}

@@ -19,12 +19,17 @@ jobs:
       with:
         go-version: '1.22'
         cache: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
     - name: Install dependencies
       run: go get .
     - name: Build
       run: go build -o go-sfs-${{ matrix.os }} -v ./main.go
     - name: Test
       run: go test
+    - name: E2E Test
+      run: python3 .github/assets/end_to_end_test.py go-simple-fileserver"
     - uses: actions/create-github-app-token@v1
       if: github.event_name == 'release'
       id: generate-token

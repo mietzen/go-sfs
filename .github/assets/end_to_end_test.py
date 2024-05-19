@@ -15,8 +15,8 @@ import requests
 from argon2 import PasswordHasher
 
 
-def run_process(cmd):
-    return subprocess.run(cmd, stdout=subprocess.PIPE, check=False)
+def run_process(cmd, cwd=None):
+    return subprocess.run(cmd, stdout=subprocess.PIPE, check=False, cwd=cwd)
 
 
 def load_json_file(filepath):
@@ -110,6 +110,8 @@ class FileServerTest(unittest.TestCase):
         cls.base_url = f"https://{cls.DEFAULT_CONFIG['baseURL']}:{cls.DEFAULT_CONFIG['port']}"
         cls.application = None
         cls.container_id = None
+        cls.cwd = None
+        cls.proc = None
         cls._data_dir = cls._test_dir.joinpath("data")
         cls._config_dir = cls._test_dir.joinpath("config")
         cls._data_dir.mkdir(parents=True, exist_ok=True)
@@ -117,13 +119,15 @@ class FileServerTest(unittest.TestCase):
         if cls.EXECUTABLE:
             shutil.copy2(cls.EXECUTABLE, cls._test_dir)
             cls.application = [cls._test_dir.joinpath(cls.EXECUTABLE.name)]
+            cls.cwd = cls._test_dir
             proc = run_process(
-                [cls._test_dir.joinpath(cls.EXECUTABLE.name), "-d"])
+                [cls._test_dir.joinpath(cls.EXECUTABLE.name), "-d"],
+                cwd=cls.cwd)
             if proc.returncode != 0:
                 print("Setup FAILED!")
                 print(str(proc.stdout))
                 sys.exit(1)
-            sleep(0.5)
+            sleep(1)
         elif cls.DOCKER:
             proc = run_process(
                 [
@@ -164,7 +168,8 @@ class FileServerTest(unittest.TestCase):
     def test_2_user(self):
         for idx, user in enumerate(self.TEST_USERS):
             proc = run_process(self.application +
-                               ["-u", user["n"], "-p", user["p"]])
+                               ["-u", user["n"], "-p", user["p"]],
+                               cwd = self.cwd)
             self.assertEqual(proc.returncode, 0)
             users = load_json_file(self._config_dir.joinpath("users.json"))
             self.assertEqual(len(users), idx+1)
@@ -174,7 +179,8 @@ class FileServerTest(unittest.TestCase):
 
         proc = run_process(
             self.application +
-            ["-u", "test", "-p", "test", "-f"])
+            ["-u", "test", "-p", "test", "-f"],
+            cwd = self.cwd)
         self.assertEqual(proc.returncode, 0)
         users = load_json_file(self._config_dir.joinpath("users.json"))
         self.assertEqual(users[0]["username"], "test")
@@ -282,6 +288,10 @@ class FileServerTest(unittest.TestCase):
         if cls.DOCKER:
             subprocess.run(
                 ["docker", "rm", "-f", cls.container_id], stdout=subprocess.PIPE, check=False,
+            )
+        else:
+            subprocess.run(
+                ["killall", "go-simple-fileserver"], stdout=subprocess.PIPE, check=False,
             )
         shutil.rmtree(cls._test_dir, ignore_errors=True)
 
