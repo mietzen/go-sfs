@@ -31,7 +31,7 @@ jobs:
     - name: Test
       run: go test
     - name: E2E Test
-      run: python3 .github/assets/end_to_end_test.py go-simple-fileserver"
+      run: python3 .github/assets/end_to_end_test.py go-simple-fileserver
     - uses: actions/create-github-app-token@v1
       if: github.event_name == 'release'
       id: generate-token
