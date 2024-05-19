@@ -699,7 +699,7 @@ func startServer() {
 	}
 
 	// Define the server address using the configured port
-	serverAddr := fmt.Sprintf(":%d", config.Port)
+	serverAddr := fmt.Sprintf("%s:%d", config.BaseURL, config.Port)
 
 	// Register the request handlers
 	http.HandleFunc("/", errorMiddleware(rateLimitMiddleware(authMiddleware(handleRoot))))
@@ -730,7 +730,7 @@ func startServer() {
 	}
 
 	// Start the HTTPS server
-	log.Printf("Server is running on https://localhost%s\n", serverAddr)
+	log.Printf("Server is running on https://%s\n", serverAddr)
 	err = server.ListenAndServeTLS(certFile, keyFile)
 	if err != nil {
 		log.Fatalf("Error starting HTTPS server: %s\n", err)
