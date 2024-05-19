@@ -40,7 +40,8 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-
+    - name: Install pip dependencies
+      run: pip install -r .github/assets/Requirements.txt
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
 

@@ -19,3 +19,10 @@ updates:
       time: "08:00"
       day: "saturday"
       timezone: "Europe/Berlin"
+  - package-ecosystem: "pip"
+    directory: "/.github/assets"
+    schedule:
+      interval: "weekly"
+      time: "08:00"
+      day: "saturday"
+      timezone: "Europe/Berlin"

@@ -22,6 +22,8 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+    - name: Install pip dependencies
+      run: pip install -r .github/assets/Requirements.txt
     - name: Install dependencies
       run: go get .
     - name: Build
