@@ -147,7 +147,6 @@ class FileServerTest(unittest.TestCase):
             cls.application = [
                 "docker",
                 "exec",
-                "-it",
                 cls.container_id,
                 "/file-server",
             ]
