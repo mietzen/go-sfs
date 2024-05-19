@@ -1,6 +1,9 @@
 package main
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -247,6 +250,9 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleUpload(w http.ResponseWriter, r *http.Request) {
+	// Parse the X-Explode-Archive header
+	explodeArchive := r.Header.Get("X-Explode-Archive") == "true"
+
 	// Parse the URL path to extract the directory structure
 	urlParts := strings.Split(r.URL.Path, "/")
 	// Remove the first element which is an empty string
@@ -299,6 +305,20 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If the explodeArchive flag is set, unzip the uploaded file
+	if explodeArchive {
+		err = explodeArchiveFile(dst.Name(), filePath)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Delete the archive
+		if err := os.RemoveAll(dst.Name()); err != nil {
+			http.Error(w, "Failed to delete archive", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	// Retrieve the username from the request context
 	username, ok := r.Context().Value("username").(string)
 	if !ok {
@@ -310,7 +330,10 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 	log.Printf("File uploaded: %s by user: %s\n", header.Filename, username)
 
 	// Calculate SHA256 checksum
-	checksum := calculateSHA256(filepath.Join(filePath, header.Filename))
+	checksum := ""
+	if !explodeArchive {
+		checksum = calculateSHA256(filepath.Join(filePath, header.Filename))
+	}
 
 	// Get base URI
 	baseURI := fmt.Sprintf("%s:%d", config.BaseURL, config.Port)
@@ -324,7 +347,8 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		Checksums struct {
 			SHA256 string `json:"sha256"`
 		} `json:"checksums"`
-		URI string `json:"uri"`
+		URI      string `json:"uri"`
+		Exploded bool   `json:"exploded"`
 	}{
 		Status:  http.StatusCreated,
 		Message: "Created",
@@ -333,7 +357,8 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 		}{
 			SHA256: checksum,
 		},
-		URI: fmt.Sprintf("https://%s/%s/%s", baseURI, uploadPath, header.Filename),
+		URI:      fmt.Sprintf("https://%s/%s/%s", baseURI, uploadPath, header.Filename),
+		Exploded: explodeArchive,
 	}
 
 	// Write the response
@@ -808,4 +833,102 @@ func isValidPath(path string, baseDir string) (bool, error) {
 
 	// The upload path is valid
 	return true, nil
+}
+
+func explodeArchiveFile(archivePath, destinationPath string) error {
+	// Determine the archive type based on file extension
+	switch {
+	case strings.HasSuffix(archivePath, ".zip"):
+		return unzip(archivePath, destinationPath)
+	case strings.HasSuffix(archivePath, ".tar"), strings.HasSuffix(archivePath, ".tar.gz"), strings.HasSuffix(archivePath, ".tgz"):
+		return untar(archivePath, destinationPath)
+	default:
+		return nil // Unsupported archive format
+	}
+}
+
+func unzip(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		path := filepath.Join(dest, f.Name)
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+		} else {
+			os.MkdirAll(filepath.Dir(path), os.ModePerm)
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func untar(src, dest string) error {
+	r, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	var tr *tar.Reader
+	// Check if the file is gzip-compressed
+	if strings.HasSuffix(src, ".tar.gz") || strings.HasSuffix(src, ".tgz") {
+		gr, err := gzip.NewReader(r)
+		if err != nil {
+			return err
+		}
+		defer gr.Close()
+		tr = tar.NewReader(gr)
+	} else {
+		tr = tar.NewReader(r)
+	}
+
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		path := filepath.Join(dest, hdr.Name)
+
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			os.MkdirAll(path, os.ModePerm)
+		case tar.TypeReg:
+			os.MkdirAll(filepath.Dir(path), os.ModePerm)
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, hdr.FileInfo().Mode())
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			if _, err := io.Copy(f, tr); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

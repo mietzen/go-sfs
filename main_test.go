@@ -1,9 +1,11 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -46,12 +48,38 @@ func TestHandleUpload(t *testing.T) {
 	}
 	tempFile.Close()
 
-	checksum := calculateSHA256(tempFile.Name())
+	// Create a ZIP archive from the temporary file
+	zipPath := filepath.Join(uploadPath, "test-file.zip")
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("Failed to create ZIP archive: %s", err)
+	}
+	defer os.Remove(zipPath)
+	defer zipFile.Close()
+
+	zipWriter := zip.NewWriter(zipFile)
+	defer zipWriter.Close()
+
+	fileWriter, err := zipWriter.Create(filepath.Base(tempFile.Name()))
+	if err != nil {
+		t.Fatalf("Failed to create ZIP file entry: %s", err)
+	}
+
+	tempFile, err = os.Open(tempFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to open temporary file: %s", err)
+	}
+	defer tempFile.Close()
+
+	_, err = io.Copy(fileWriter, tempFile)
+	if err != nil {
+		t.Fatalf("Failed to write to ZIP file: %s", err)
+	}
 
 	// Create a new HTTP request with the temporary file
 	body := new(bytes.Buffer)
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("file", filepath.Base(tempFile.Name()))
+	part, err := writer.CreateFormFile("file", "test-file.zip")
 	if err != nil {
 		t.Fatalf("Failed to create form file: %s", err)
 	}
@@ -63,11 +91,13 @@ func TestHandleUpload(t *testing.T) {
 	// Construct the URL path with the nested directories
 	urlPath := "/" + filepath.Join(nestedDirs...)
 
+	// Create a request with explodeArchive set to true
 	req, err := http.NewRequest("PUT", urlPath, body)
 	if err != nil {
 		t.Fatalf("Failed to create request: %s", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("X-Explode-Archive", "true")
 
 	// Create a response recorder
 	rr := httptest.NewRecorder()
@@ -80,8 +110,9 @@ func TestHandleUpload(t *testing.T) {
 		t.Errorf("Handler returned wrong status code: got %v, expected %v", status, http.StatusCreated)
 	}
 
-	// Get base URI
+	// Expected URI
 	baseURI := fmt.Sprintf("%s:%d", config.BaseURL, config.Port)
+	expectedURI := fmt.Sprintf("https://%s%s/%s", baseURI, urlPath, filepath.Base(zipPath))
 
 	// Construct the expected response struct
 	expected := struct {
@@ -90,16 +121,18 @@ func TestHandleUpload(t *testing.T) {
 		Checksums struct {
 			SHA256 string `json:"sha256"`
 		} `json:"checksums"`
-		URI string `json:"uri"`
+		URI      string `json:"uri"`
+		Exploded bool   `json:"exploded"`
 	}{
 		Status:  http.StatusCreated,
 		Message: "Created",
 		Checksums: struct {
 			SHA256 string `json:"sha256"`
 		}{
-			SHA256: checksum,
+			SHA256: "",
 		},
-		URI: fmt.Sprintf("https://%s%s/%s", baseURI, urlPath, filepath.Base(tempFile.Name())),
+		URI:      expectedURI,
+		Exploded: true,
 	}
 
 	// Marshal the expected struct to JSON
@@ -115,6 +148,35 @@ func TestHandleUpload(t *testing.T) {
 
 	// Check if the file was uploaded successfully to the expected path
 	uploadedFilePath := filepath.Join(uploadPath, filepath.Base(tempFile.Name()))
+	if _, err := os.Stat(uploadedFilePath); os.IsNotExist(err) {
+		t.Errorf("Uploaded file does not exist: %s", uploadedFilePath)
+	}
+
+	// Create a request with explodeArchive set to false
+	req, err = http.NewRequest("PUT", urlPath, body)
+	if err != nil {
+		t.Fatalf("Failed to create request: %s", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("X-Explode-Archive", "false")
+
+	// Reset the response recorder
+	rr = httptest.NewRecorder()
+
+	// Call the handleUpload function again
+	handleUpload(rr, req)
+
+	// Check the response status code
+	if status := rr.Code; status != http.StatusCreated {
+		t.Errorf("Handler returned wrong status code: got %v, expected %v", status, http.StatusCreated)
+	}
+
+	// Check if the response body matches the expected JSON
+	if strings.TrimSpace(rr.Body.String()) != string(expectedJSON) {
+		t.Errorf("Handler returned unexpected body: got %v, expected %v", strings.TrimSpace(rr.Body.String()), string(expectedJSON))
+	}
+
+	// Check if the file was uploaded successfully to the expected path
 	if _, err := os.Stat(uploadedFilePath); os.IsNotExist(err) {
 		t.Errorf("Uploaded file does not exist: %s", uploadedFilePath)
 	}
