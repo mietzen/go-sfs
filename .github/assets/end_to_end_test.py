@@ -291,7 +291,7 @@ class FileServerTest(unittest.TestCase):
             )
         else:
             subprocess.run(
-                ["killall", "go-simple-fileserver"], stdout=subprocess.PIPE, check=False,
+                ["killall", cls.EXECUTABLE.name], stdout=subprocess.PIPE, check=False,
             )
         shutil.rmtree(cls._test_dir, ignore_errors=True)
 
