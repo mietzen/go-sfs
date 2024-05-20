@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import json
+import logging
 import shutil
 import subprocess
 import sys
@@ -14,12 +15,19 @@ from time import sleep
 import requests
 from argon2 import PasswordHasher
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+
 
 def run_process(cmd, cwd=None):
-    return subprocess.run(cmd, stdout=subprocess.PIPE, check=False, cwd=cwd)
+    logging.debug(f"Running command: {' '.join(cmd)}, cwd={cwd}")
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, check=False, cwd=cwd)
+    logging.debug(f"Command result: {result.stdout.decode()}")
+    return result
 
 
 def load_json_file(filepath):
+    logging.debug(f"Loading JSON file from {filepath}")
     with open(filepath, encoding="utf-8") as f:
         return json.load(f)
 
@@ -29,12 +37,14 @@ def create_testfile(suffix="", content="", directory=None):
     if directory:
         directory.mkdir(parents=True, exist_ok=True)
         filepath = directory.joinpath(filepath)
+    logging.debug(f"Creating test file at {filepath}")
     with open(filepath, "w", encoding="utf-8") as fid:
         fid.write(content)
     return Path(filepath)
 
 
 def sha256sum(filename):
+    logging.debug(f"Calculating sha256sum for {filename}")
     with open(filename, "rb", buffering=0) as f:
         return hashlib.file_digest(f, "sha256").hexdigest()
 
@@ -106,6 +116,7 @@ class FileServerTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        logging.debug("Setting up class...")
         cls._test_dir = Path(tempfile.mkdtemp(dir="."))
         cls.base_url = f"https://{cls.DEFAULT_CONFIG['baseURL']}:{cls.DEFAULT_CONFIG['port']}"
         cls.application = None
@@ -124,8 +135,8 @@ class FileServerTest(unittest.TestCase):
                 [cls._test_dir.joinpath(cls.EXECUTABLE.name), "-d"],
                 cwd=cls.cwd)
             if proc.returncode != 0:
-                print("Setup FAILED!")
-                print(str(proc.stdout))
+                logging.error("Setup FAILED! Executable failed to start.")
+                logging.error(str(proc.stdout))
                 sys.exit(1)
             sleep(1)
         elif cls.DOCKER:
@@ -151,27 +162,28 @@ class FileServerTest(unittest.TestCase):
                 "/file-server",
             ]
             if proc.returncode != 0:
-                print("Setup FAILED!")
-                print(str(proc.stdout))
+                logging.error("Setup FAILED! Docker container failed to start.")
+                logging.error(str(proc.stdout))
                 sys.exit(1)
             sleep(0.5)
         else:
-            print("Setup FAILED!")
-            print("No Test Application!")
+            logging.error("Setup FAILED! No Test Application provided.")
             sys.exit(1)
 
     def test_1_default_config(self):
+        logging.debug("Testing default configuration...")
         config = load_json_file(self._config_dir.joinpath("config.json"))
         self.assertDictEqual(config, self.DEFAULT_CONFIG)
 
     def test_2_user(self):
+        logging.debug("Testing user creation and verification...")
         for idx, user in enumerate(self.TEST_USERS):
             proc = run_process(self.application +
                                ["-u", user["n"], "-p", user["p"]],
-                               cwd = self.cwd)
+                               cwd=self.cwd)
             self.assertEqual(proc.returncode, 0)
             users = load_json_file(self._config_dir.joinpath("users.json"))
-            self.assertEqual(len(users), idx+1)
+            self.assertEqual(len(users), idx + 1)
             self.assertEqual(users[idx]["username"], user["n"])
             self.assertTrue(verify_go_argon2_pw(
                 users[idx]["password"], user["p"]))
@@ -179,13 +191,14 @@ class FileServerTest(unittest.TestCase):
         proc = run_process(
             self.application +
             ["-u", "test", "-p", "test", "-f"],
-            cwd = self.cwd)
+            cwd=self.cwd)
         self.assertEqual(proc.returncode, 0)
         users = load_json_file(self._config_dir.joinpath("users.json"))
         self.assertEqual(users[0]["username"], "test")
         self.assertTrue(verify_go_argon2_pw(users[0]["password"], "test"))
 
     def test_3_upload(self):
+        logging.debug("Testing file upload...")
         for file_data in self.TEST_FILES:
             suffix = file_data["name"].rsplit("_", maxsplit=1)[-1]
             file = create_testfile(
@@ -210,6 +223,7 @@ class FileServerTest(unittest.TestCase):
             sleep(0.25)
 
     def test_4_list_files(self):
+        logging.debug("Testing file listing...")
         response = self.requests.get(
             f"{self.base_url}/files",
             auth=self.req_auth, verify=False,
@@ -233,21 +247,23 @@ class FileServerTest(unittest.TestCase):
             sleep(0.25)
 
     def test_5_download(self):
+        logging.debug("Testing file download...")
         download_dir = Path(tempfile.mkdtemp(dir=self._test_dir))
         for file_meta_data in self.TEST_FILES:
             url = f"{self.base_url}/{file_meta_data['path']}"
             with self.requests.get(url, timeout=30, auth=self.req_auth, verify=False) as r:
                 self.assertEqual(r.status_code, 200)
-                with open(download_dir.joinpath(Path(file_meta_data["path"]).name), "wb")as f:
+                with open(download_dir.joinpath(Path(file_meta_data["path"]).name), "wb") as f:
                     f.write(r.content)
             self.assertEqual(
                 sha256sum(download_dir.joinpath(Path(file_meta_data["path"]).name)), file_meta_data["sha256"])
             sleep(0.25)
 
     def test_6_delete(self):
+        logging.debug("Testing file deletion...")
         for file_data in self.TEST_FILES:
             if file_data["path"] == file_data["name"]:
-                delete_url = f"{self.base_url}/{file_data["name"]}"
+                delete_url = f"{self.base_url}/{file_data['name']}"
             else:
                 folder = str(Path(file_data["path"]).parents[-2])
                 delete_url = f"{self.base_url}/{folder}/"
@@ -262,6 +278,7 @@ class FileServerTest(unittest.TestCase):
             sleep(0.25)
 
     def test_7_rate_limit(self):
+        logging.debug("Testing rate limit...")
         burst = int(self.DEFAULT_CONFIG["rateLimit"]["burst"])
         sleep(burst)  # Cool down
         for i in range(1, burst + 2):
@@ -276,6 +293,7 @@ class FileServerTest(unittest.TestCase):
         sleep(1)
 
     def test_8_bad_auth(self):
+        logging.debug("Testing authentication failure...")
         response = self.requests.get(
             f"{self.base_url}/files",
             auth=("Wrong", "User"), verify=False,
@@ -284,6 +302,7 @@ class FileServerTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        logging.debug("Tearing down class...")
         if cls.DOCKER:
             subprocess.run(
                 ["docker", "rm", "-f", cls.container_id], stdout=subprocess.PIPE, check=False,
@@ -311,8 +330,8 @@ if __name__ == "__main__":
     else:
         ERROR = True
     if ERROR:
-        print("Please call like: python e2e-test.py /path/to/go-executable")
-        print("or like: python e2e-test.py --docker docker-image-name:tag")
+        logging.error("Invalid call. Please provide a valid executable or Docker image.")
+        logging.error("Usage: python e2e-test.py /path/to/go-executable or python e2e-test.py --docker docker-image-name:tag")
         sys.exit(1)
     sys.argv = [sys.argv[0]]
     unittest.main(verbosity=2)
