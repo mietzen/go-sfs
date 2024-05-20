@@ -23,7 +23,7 @@ jobs:
         echo "repo_name_lower_case=$(echo ${GITHUB_REPOSITORY@L} | cut -d'/' -f2)" >> $GITHUB_OUTPUT
 
   Build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 5
     needs: Setup
     env:
