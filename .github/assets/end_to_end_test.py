@@ -161,6 +161,7 @@ class FileServerTest(unittest.TestCase):
                 cls.container_id,
                 "/file-server",
             ]
+            sleep(10)
             _ = run_process(['docker', 'container', 'ls', '-a'])
             if proc.returncode != 0:
                 logging.error("Setup FAILED! Docker container failed to start.")
