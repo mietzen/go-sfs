@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(mes
 
 
 def run_process(cmd, cwd=None):
-    logging.debug(f"Running command: {' '.join(cmd)}, cwd={cwd}")
+    logging.debug(f"Running command: {' '.join([str(x) for x in cmd])}, cwd={cwd}")
     result = subprocess.run(cmd, stdout=subprocess.PIPE, check=False, cwd=cwd)
     logging.debug(f"Command result: {result.stdout.decode()}")
     return result
