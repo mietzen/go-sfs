@@ -132,7 +132,7 @@ class FileServerTest(unittest.TestCase):
             cls.application = [cls._test_dir.joinpath(cls.EXECUTABLE.name)]
             cls.cwd = cls._test_dir
             proc = run_process(
-                [cls._test_dir.joinpath(cls.EXECUTABLE.name), "-d"],
+                [str(cls._test_dir.joinpath(cls.EXECUTABLE.name)), "-d"],
                 cwd=cls.cwd)
             if proc.returncode != 0:
                 logging.error("Setup FAILED! Executable failed to start.")
