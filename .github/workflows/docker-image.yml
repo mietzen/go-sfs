@@ -23,7 +23,7 @@ jobs:
         echo "repo_name_lower_case=$(echo ${GITHUB_REPOSITORY@L} | cut -d'/' -f2)" >> $GITHUB_OUTPUT
 
   Build:
-    runs-on: macos-latest
+    runs-on: macos-13
     timeout-minutes: 5
     needs: Setup
     env:
@@ -45,8 +45,7 @@ jobs:
 
     - name: Setup docker (missing on MacOS)
       if: runner.os == 'macos'
-      run: |
-        brew install docker
+      uses: douglascamata/setup-docker-macos-action@v1-alpha
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
