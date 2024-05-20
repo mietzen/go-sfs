@@ -90,7 +90,7 @@ class FileServerTest(unittest.TestCase):
         "certFolder": "./config/certs",
         "port": 8080,
         "reverseProxy": False,
-        "baseURL": "localhost",
+        "baseURL": "0.0.0.0",
     }
     TEST_FILES = [
         {
@@ -118,7 +118,7 @@ class FileServerTest(unittest.TestCase):
     def setUpClass(cls):
         logging.debug("Setting up class...")
         cls._test_dir = Path(tempfile.mkdtemp(dir="."))
-        cls.base_url = f"https://{cls.DEFAULT_CONFIG['baseURL']}:{cls.DEFAULT_CONFIG['port']}"
+        cls.base_url = f"https://127.0.0.1:{cls.DEFAULT_CONFIG['port']}"
         cls.application = None
         cls.container_id = None
         cls.cwd = None
@@ -161,8 +161,6 @@ class FileServerTest(unittest.TestCase):
                 cls.container_id,
                 "/file-server",
             ]
-            sleep(10)
-            _ = run_process(['docker', 'container', 'ls', '-a'])
             if proc.returncode != 0:
                 logging.error("Setup FAILED! Docker container failed to start.")
                 logging.error(str(proc.stdout))
