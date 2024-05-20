@@ -24,7 +24,7 @@ jobs:
 
   Build:
     runs-on: macos-13
-    timeout-minutes: 5
+    timeout-minutes: 15
     needs: Setup
     env:
       VERSION: ${{ needs.Setup.outputs.version }}
