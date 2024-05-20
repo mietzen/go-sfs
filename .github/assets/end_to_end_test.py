@@ -146,7 +146,7 @@ class FileServerTest(unittest.TestCase):
                     "run",
                     "-d",
                     "-p",
-                    "8080:8080",
+                    "127.0.0.1:8080:8080",
                     "-v",
                     f"{cls._test_dir.joinpath('data')!s}:/data",
                     "-v",
