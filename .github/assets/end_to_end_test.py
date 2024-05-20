@@ -90,7 +90,7 @@ class FileServerTest(unittest.TestCase):
         "certFolder": "./config/certs",
         "port": 8080,
         "reverseProxy": False,
-        "baseURL": "0.0.0.0",
+        "baseURL": "localhost",
     }
     TEST_FILES = [
         {
@@ -148,9 +148,9 @@ class FileServerTest(unittest.TestCase):
                     "-p",
                     "127.0.0.1:8080:8080",
                     "-v",
-                    f"{cls._test_dir.joinpath('data')!s}:/data",
+                    f"{str(cls._data_dir)}:/data",
                     "-v",
-                    f"{cls._test_dir.joinpath('config')!s}:/config",
+                    f"{str(cls._config_dir)}:/config",
                     cls.DOCKER_IMAGE,
                 ])
 
