@@ -42,6 +42,12 @@ jobs:
         python-version: '3.12'
     - name: Install pip dependencies
       run: pip install -r .github/assets/Requirements.txt
+
+    - name: Setup docker (missing on MacOS)
+      if: runner.os == 'macos'
+      run: |
+        brew install docker
+
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
 
