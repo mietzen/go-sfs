@@ -165,23 +165,8 @@ class FileServerTest(unittest.TestCase):
                 logging.error("Setup FAILED! Docker container failed to start.")
                 logging.error(str(proc.stdout))
                 sys.exit(1)
-            sleep(16)
-            proc = run_process(
-                            [
-                                "docker",
-                                "container",
-                                "ls",
-                                "-all"
-                            ])
-            logging.debug(str(proc.stdout))
-            proc = run_process(
-                            [
-                                "netstat",
-                                "-tulpn",
-                                "|",
-                                "grep",
-                                "LISTEN"
-                            ])
+            sleep(0.5)
+
             logging.debug(str(proc.stdout))
         else:
             logging.error("Setup FAILED! No Test Application provided.")
