@@ -117,7 +117,7 @@ class FileServerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         logging.debug("Setting up class...")
-        cls._test_dir = Path(tempfile.mkdtemp(dir="."))
+        cls._test_dir = Path(tempfile.mkdtemp(dir=".")).resolve()
         cls.base_url = f"https://127.0.0.1:{cls.DEFAULT_CONFIG['port']}"
         cls.application = None
         cls.container_id = None
