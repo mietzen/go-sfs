@@ -1,12 +1,13 @@
-FROM golang:1.22-bookworm AS builder
+FROM golang:1.22-alpine AS builder
 
+#RUN apk update && apk add --no-cache git
 WORKDIR $GOPATH/src/mietzen/go-sfs/
 COPY . .
 RUN go get -d -v
 RUN go test
 RUN go build -o /tmp/file-server
 
-FROM debian:bookworm-slim
+FROM scratch
 
 COPY --from=builder /tmp/file-server /file-server
 EXPOSE 8080
