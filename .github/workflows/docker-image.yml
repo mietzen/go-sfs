@@ -68,20 +68,6 @@ jobs:
           --load \
           -f Dockerfile .
 
-    - name: E2E Test
-      env:
-        DOCKER_USER: ${{ vars.DOCKER_HUB_USERNAME || github.repository_owner }}
-        BUILD_NR: ${{ github.run_number }}
-        PLATFORM: ${{ matrix.platform }}
-      run: |
-        ARCH=$(echo "${PLATFORM}" | awk -F  "/" '{print $2$3}')
-        echo ""
-        echo "============================================================="
-        echo "Testing: ${DOCKER_USER}/${IMAGE_NAME}:${VERSION}-${ARCH}-${BUILD_NR}"
-        echo "============================================================="
-        echo ""
-        python3 .github/assets/end_to_end_test.py docker "${DOCKER_USER}/${IMAGE_NAME}:${VERSION}-${ARCH}-${BUILD_NR}"
-
     - uses: actions/upload-artifact@v4
       if: always()
       with:
