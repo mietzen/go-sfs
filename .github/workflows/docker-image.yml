@@ -71,7 +71,7 @@ jobs:
     - uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: workspace
+        name: workspace-${{ matrix.platform }}
         path: ${{ runner.workspace }}
 
     - name: Login to Docker Hub
