@@ -23,7 +23,7 @@ jobs:
         echo "repo_name_lower_case=$(echo ${GITHUB_REPOSITORY@L} | cut -d'/' -f2)" >> $GITHUB_OUTPUT
 
   Build:
-    runs-on: macos-13
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: Setup
     env:
@@ -39,13 +39,10 @@ jobs:
 
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.12'
+
     - name: Install pip dependencies
       run: pip install -r .github/assets/Requirements.txt
-
-    - name: Setup docker (missing on MacOS)
-      if: runner.os == 'macos'
-      uses: douglascamata/setup-docker-macos-action@v1-alpha
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
