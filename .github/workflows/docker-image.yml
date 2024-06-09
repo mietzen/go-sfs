@@ -68,6 +68,25 @@ jobs:
           --load \
           -f Dockerfile .
 
+    - name: Debug E2E
+      env:
+        DOCKER_USER: ${{ vars.DOCKER_HUB_USERNAME || github.repository_owner }}
+        BUILD_NR: ${{ github.run_number }}
+        PLATFORM: ${{ matrix.platform }}
+      run: |
+        mkdir debug_e2e
+        cd debug_e2e
+        mkdir data
+        mkdir config
+        ID=$(docker run -d -p 127.0.0.1:8080:8080 -v `pwd`/data:/data -v `pwd`/config:/config "${DOCKER_USER}/${IMAGE_NAME}:${VERSION}-${ARCH}-${BUILD_NR}")
+        echo "$ID"
+        docker container ls --all
+        sudo lsof -i -P -n | grep LISTEN || echo "no lsof"
+        sudo netstat -tulpn | grep LISTEN || echo "no netstat"
+        sudo ss -tulwn | grep LISTEN || echo "no ss"
+        docker container stop "$ID"
+        docker container rm "$ID"
+
     - name: E2E Test
       env:
         DOCKER_USER: ${{ vars.DOCKER_HUB_USERNAME || github.repository_owner }}
