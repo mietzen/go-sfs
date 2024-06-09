@@ -1,7 +1,7 @@
-FROM golang:1.22-alpine3.19 AS builder
+FROM golang:1.22 AS builder
 
-RUN apk update && apk add --no-cache git
-WORKDIR $GOPATH/src/mypackage/myapp/
+#RUN apk update && apk add --no-cache git
+WORKDIR $GOPATH/src/mietzen/go-sfs/
 COPY . .
 RUN go get -d -v
 RUN go test
